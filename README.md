@@ -7,6 +7,10 @@ A ComfyUI node pack for filtering and rewriting gendered vocabulary in AI image 
 
 _This is an independent node pack and is not affiliated with the ComfyUI development team._
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/senjinthedragon/comfyui-gender-tag-filter/main/assets/comfyui1.webp" alt="Workflow with both nodes chained together, showing output of each node.">
+</p>
+
 > [!IMPORTANT]
 > **A note on scope**
 >
