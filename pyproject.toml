@@ -1,0 +1,13 @@
+[tool.ruff]
+# Set the maximum line length (88 is the Black standard)
+line-length = 88
+
+[tool.ruff.lint]
+# Enable "E" (errors) and "F" (Pyflakes) by default.
+# Adding "I" ensures your imports are always sorted.
+select = ["E", "F", "I"]
+fixable = ["ALL"]
+
+[tool.ruff.format]
+# Use double quotes (standard Python style)
+quote-style = "double"

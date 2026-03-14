@@ -1,0 +1,23 @@
+---
+name: Question / Support
+about: Need help getting something working or want to understand how something works
+title: "[Question] "
+labels: question
+assignees: ''
+---
+
+## What do you need help with?
+
+<!-- Describe what you're trying to do or what you're confused about. -->
+
+## What have you already tried?
+
+<!-- Have you checked the README? Let us know so we don't suggest things you've already done. -->
+
+## Your setup
+
+- **Operating system**: <!-- e.g. Windows 11, Ubuntu 24.04 -->
+
+## Additional context
+
+<!-- Screenshots, error messages, or anything else that might help. Don't share your bot token! -->
