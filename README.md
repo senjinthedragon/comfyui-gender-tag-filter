@@ -5,7 +5,11 @@
 
 A ComfyUI node pack for filtering and rewriting gendered vocabulary in AI image generation prompts. Built to correct the female-biased output of prompt expansion models like TIPO when generating male or mixed-gender scenes.
 
-*This is an independent node pack and is not affiliated with the ComfyUI development team.*
+_This is an independent node pack and is not affiliated with the ComfyUI development team._
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/senjinthedragon/comfyui-gender-tag-filter/main/assets/comfyui1.webp" alt="ComfyUI workflow of the nodes">
+</p>
 
 > [!IMPORTANT]
 > **A note on scope**
@@ -47,6 +51,7 @@ Filters and rewrites gendered vocabulary in natural language prompts or mixed ta
 > spaCy depends on `pydantic v1` and `blis`, neither of which build successfully on Python 3.13 or 3.14 as of this writing. If you are running ComfyUI under Python 3.13 or 3.14, the Gender NL Filter node will automatically fall back to regex mode and log a message in the console. Everything still works — you just won't get the accuracy benefits of spaCy until upstream support catches up.
 >
 > If spaCy accuracy matters to you, create your ComfyUI venv explicitly under Python 3.12:
+>
 > ```shell
 > python3.12 -m venv venv
 > source venv/bin/activate   # Linux/Mac
@@ -88,6 +93,7 @@ python -m spacy download en_core_web_sm
 
 > [!TIP]
 > If you are running ComfyUI in a virtual environment, make sure you activate it before running the commands above. If you installed ComfyUI via the Windows portable package, use the `python_embeded` Python that ships with it:
+>
 > ```shell
 > .\python_embeded\python.exe -m pip install spacy
 > .\python_embeded\python.exe -m spacy download en_core_web_sm
@@ -127,35 +133,35 @@ Since both nodes take a `STRING` input and return a `STRING` output, they wire t
 
 ### Gender Tag Filter
 
-| Input | Type | Default | Description |
-|---|---|---|---|
-| `text` | STRING | — | Tag string to filter |
-| `mode` | dropdown | `strip_female_tags` | `strip_female_tags`, `strip_male_tags`, or `off` |
-| `filter_anatomy` | boolean | true | Remove explicit anatomical tags for the unwanted gender |
-| `filter_presentation` | boolean | false | Also remove gendered clothing and accessory tags. Disable this if your character is crossdressing and you want to keep their outfit tags. |
-| `apply_replacements` | boolean | false | Replace some removed tags with gender-appropriate counterparts instead of just deleting them (e.g. `large_breasts` → `muscular_chest`) |
-| `tag_format` | dropdown | `underscores` | Output word separator style. `underscores` for most models (Danbooru/e621), `spaces` for some fine-tuned models. Input tags are always accepted in either style regardless of this setting. |
-| `delimiter` | string | `, ` | Tag separator used in the output. Input is parsed forgivingly — leading and trailing spaces around tags are stripped automatically, so `tag1,tag2` and `tag1, tag2` both parse correctly. |
+| Input                 | Type     | Default             | Description                                                                                                                                                                                 |
+| --------------------- | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `text`                | STRING   | —                   | Tag string to filter                                                                                                                                                                        |
+| `mode`                | dropdown | `strip_female_tags` | `strip_female_tags`, `strip_male_tags`, or `off`                                                                                                                                            |
+| `filter_anatomy`      | boolean  | true                | Remove explicit anatomical tags for the unwanted gender                                                                                                                                     |
+| `filter_presentation` | boolean  | false               | Also remove gendered clothing and accessory tags. Disable this if your character is crossdressing and you want to keep their outfit tags.                                                   |
+| `apply_replacements`  | boolean  | false               | Replace some removed tags with gender-appropriate counterparts instead of just deleting them (e.g. `large_breasts` → `muscular_chest`)                                                      |
+| `tag_format`          | dropdown | `underscores`       | Output word separator style. `underscores` for most models (Danbooru/e621), `spaces` for some fine-tuned models. Input tags are always accepted in either style regardless of this setting. |
+| `delimiter`           | string   | `, `                | Tag separator used in the output. Input is parsed forgivingly — leading and trailing spaces around tags are stripped automatically, so `tag1,tag2` and `tag1, tag2` both parse correctly.   |
 
 ### Gender NL Filter
 
-| Input | Type | Default | Description |
-|---|---|---|---|
-| `text` | STRING | — | Prompt to filter |
-| `mode` | dropdown | `strip_female_language` | `strip_female_language`, `strip_male_language`, or `off` |
-| `handle_negations` | boolean | true | Protect negated anatomy terms from removal. e.g. `no breasts` and `without a vagina` are left untouched. Uses spaCy dependency parsing for accuracy; the regex fallback uses a 4-token proximity heuristic. |
-| `handle_pronouns` | boolean | true | Swap binary gendered pronouns. `she/her/hers/herself` ↔ `he/him/his/himself` |
-| `rewrite_references` | boolean | true | Swap gendered nouns and adjectives. `woman/girl/lady` ↔ `man/boy/guy` and so on. Also covers furry-specific terms: `vixen/doe/mare/tigress` etc. |
-| `swap_clothing` | boolean | true | Replace gendered clothing terms with equivalents, or remove them where no clean equivalent exists. e.g. `dress` → `suit`, `skirt` → `trousers`, `bra` → removed, `bikini` → `swim trunks` |
-| `map_neopronouns_to_binary` | boolean | true | Map neopronouns and gender-neutral pronouns to binary equivalents that image models are likely to recognise. Covers `shi/hir` (Chakat/furry), `they/them`, `xe/xem`, `ze/zir`, `ey/em` (Spivak), `fae/faer`. Singular `they/them` is remapped; spaCy detects and preserves plural `they/them` (the regex fallback is approximate for this case). When off, all neopronouns pass through unchanged. |
-| `spacy_model` | string | `en_core_web_sm` | spaCy model to use. `en_core_web_sm` (~12MB) is good for most cases. Falls back to regex automatically if spaCy is not installed. |
+| Input                       | Type     | Default                 | Description                                                                                                                                                                                                                                                                                                                                                                                        |
+| --------------------------- | -------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `text`                      | STRING   | —                       | Prompt to filter                                                                                                                                                                                                                                                                                                                                                                                   |
+| `mode`                      | dropdown | `strip_female_language` | `strip_female_language`, `strip_male_language`, or `off`                                                                                                                                                                                                                                                                                                                                           |
+| `handle_negations`          | boolean  | true                    | Protect negated anatomy terms from removal. e.g. `no breasts` and `without a vagina` are left untouched. Uses spaCy dependency parsing for accuracy; the regex fallback uses a 4-token proximity heuristic.                                                                                                                                                                                        |
+| `handle_pronouns`           | boolean  | true                    | Swap binary gendered pronouns. `she/her/hers/herself` ↔ `he/him/his/himself`                                                                                                                                                                                                                                                                                                                       |
+| `rewrite_references`        | boolean  | true                    | Swap gendered nouns and adjectives. `woman/girl/lady` ↔ `man/boy/guy` and so on. Also covers furry-specific terms: `vixen/doe/mare/tigress` etc.                                                                                                                                                                                                                                                   |
+| `swap_clothing`             | boolean  | true                    | Replace gendered clothing terms with equivalents, or remove them where no clean equivalent exists. e.g. `dress` → `suit`, `skirt` → `trousers`, `bra` → removed, `bikini` → `swim trunks`                                                                                                                                                                                                          |
+| `map_neopronouns_to_binary` | boolean  | true                    | Map neopronouns and gender-neutral pronouns to binary equivalents that image models are likely to recognise. Covers `shi/hir` (Chakat/furry), `they/them`, `xe/xem`, `ze/zir`, `ey/em` (Spivak), `fae/faer`. Singular `they/them` is remapped; spaCy detects and preserves plural `they/them` (the regex fallback is approximate for this case). When off, all neopronouns pass through unchanged. |
+| `spacy_model`               | string   | `en_core_web_sm`        | spaCy model to use. `en_core_web_sm` (~12MB) is good for most cases. Falls back to regex automatically if spaCy is not installed.                                                                                                                                                                                                                                                                  |
 
 **Outputs:**
 
-| Output | Type | Description |
-|---|---|---|
-| `filtered_text` | STRING | The processed prompt |
-| `backend_used` | STRING | `spacy`, `regex`, or `off` — useful for debugging |
+| Output          | Type   | Description                                       |
+| --------------- | ------ | ------------------------------------------------- |
+| `filtered_text` | STRING | The processed prompt                              |
+| `backend_used`  | STRING | `spacy`, `regex`, or `off` — useful for debugging |
 
 ## Crossdressing characters
 
@@ -163,10 +169,10 @@ If your character is intentionally wearing clothing associated with a different 
 
 ## spaCy model sizes
 
-| Model | Size | Notes |
-|---|---|---|
-| `en_core_web_sm` | ~12 MB | Recommended. Good accuracy for prompt-length text. |
-| `en_core_web_md` | ~43 MB | Better word vectors, marginal improvement for this use case. |
+| Model            | Size    | Notes                                                                          |
+| ---------------- | ------- | ------------------------------------------------------------------------------ |
+| `en_core_web_sm` | ~12 MB  | Recommended. Good accuracy for prompt-length text.                             |
+| `en_core_web_md` | ~43 MB  | Better word vectors, marginal improvement for this use case.                   |
 | `en_core_web_lg` | ~560 MB | Best accuracy. Worthwhile if you are processing longer character descriptions. |
 
 > [!NOTE]
@@ -197,9 +203,10 @@ You are most likely running Python 3.13 or 3.14. spaCy does not currently suppor
 I'm a solo developer building tools to make AI-assisted roleplay and image generation better for the community. I maintain these projects in my free time, and any support is genuinely appreciated.
 
 If this node pack saves you frustration, please consider:
-* **[Sponsoring me on GitHub](https://github.com/sponsors/senjinthedragon)**
-* **[Buying me a coffee on Ko-fi](https://ko-fi.com/senjinthedragon)**
-* **Starring this repository** to help others find it
+
+- **[Sponsoring me on GitHub](https://github.com/sponsors/senjinthedragon)**
+- **[Buying me a coffee on Ko-fi](https://ko-fi.com/senjinthedragon)**
+- **Starring this repository** to help others find it
 
 ## License
 
