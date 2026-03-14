@@ -1,5 +1,5 @@
 """
-GenderNLFilter — ComfyUI Custom Node
+GenderNLFilter - ComfyUI Custom Node
 ======================================
 Filters and rewrites gendered language in natural language prompts,
 or in mixed prompts containing both tags and natural language fragments.
@@ -457,9 +457,9 @@ class GenderNLFilter:
                     "default": "en_core_web_sm",
                     "tooltip": (
                         "spaCy model for NLP processing.\n"
-                        "en_core_web_sm  ~12MB  — good for most cases (recommended)\n"
-                        "en_core_web_md  ~43MB  — better word vectors\n"
-                        "en_core_web_lg  ~560MB — best accuracy\n"
+                        "en_core_web_sm  ~12MB  - good for most cases (recommended)\n"
+                        "en_core_web_md  ~43MB  - better word vectors\n"
+                        "en_core_web_lg  ~560MB - best accuracy\n"
                         "Falls back to regex automatically if spaCy is not installed."
                     ),
                 }),

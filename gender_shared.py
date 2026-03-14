@@ -1,5 +1,5 @@
 """
-gender_shared.py — Shared data and utilities
+gender_shared.py - Shared data and utilities
 =============================================
 Used by both GenderTagFilter and GenderNLFilter.
 Do not import ComfyUI-specific code here.
@@ -163,7 +163,7 @@ def is_natural_language(text: str, nlp=None) -> bool:
 def chunk_is_tag(text: str, nlp=None) -> bool:
     """
     Return True if text looks like a standalone tag rather than NL.
-    Inverse of is_natural_language — used in the NL filter to skip
+    Inverse of is_natural_language - used in the NL filter to skip
     chunks already handled by the tag filter.
     """
     words = text.replace("_", " ").split()
@@ -227,12 +227,12 @@ def has_negation_ancestor(token) -> bool:
 # All entries use space-separated form; normalise before lookup.
 
 NEOPRONOUN_MAP = {
-    # Chakat / hermaphrodite — very common in furry fandom
+    # Chakat / hermaphrodite - very common in furry fandom
     "shi":          ("he",      "she"),
     "hir":          ("his",     "her"),
     "hirs":         ("his",     "hers"),
     "hirself":      ("himself", "herself"),
-    # Singular they/them — plural handled separately via spaCy morphology
+    # Singular they/them - plural handled separately via spaCy morphology
     "they":         ("he",      "she"),
     "them":         ("him",     "her"),
     "their":        ("his",     "her"),
@@ -250,18 +250,18 @@ NEOPRONOUN_MAP = {
     "zir":          ("his",     "her"),
     "zirs":         ("his",     "hers"),
     "zirself":      ("himself", "herself"),
-    # ey/em/eir — Spivak
+    # ey/em/eir - Spivak
     "ey":           ("he",      "she"),
     "em":           ("him",     "her"),
     "eir":          ("his",     "her"),
     "eirs":         ("his",     "hers"),
     "emself":       ("himself", "herself"),
-    # fae/faer — fandom-specific
+    # fae/faer - fandom-specific
     "fae":          ("he",      "she"),
     "faer":         ("his",     "her"),
     "faers":        ("his",     "hers"),
     "faerself":     ("himself", "herself"),
-    # Note: "it/its" intentionally excluded — overwhelmingly used for
+    # Note: "it/its" intentionally excluded - overwhelmingly used for
     # objects and animals in model training data.
 }
 
@@ -555,7 +555,7 @@ MALE_PRESENTATION = {
     "male_focus",
 }
 
-# Clothing replacement maps — tag format (underscores)
+# Clothing replacement maps - tag format (underscores)
 FEMALE_TO_MALE_CLOTHING = {
     "evening_gown":         "tuxedo",
     "one-piece_swimsuit":   "swim_trunks",
@@ -626,7 +626,7 @@ MALE_TO_FEMALE_CLOTHING = {
     "male_focus":           "female_focus",
 }
 
-# Clothing replacement maps — NL format (spaces)
+# Clothing replacement maps - NL format (spaces)
 CLOTHING_FEMALE_TO_MALE_NL = {
     "evening gown":         "tuxedo",
     "one-piece swimsuit":   "swim trunks",
@@ -709,7 +709,7 @@ DANGLING_ADJ_PATTERN = re.compile(
 def is_plural_they(token) -> bool:
     """
     Distinguish singular they (gender-neutral pronoun) from plural they.
-    Returns True when plural — leave untouched.
+    Returns True when plural - leave untouched.
     """
     number = token.morph.get("Number")
     if number and "Plur" in number:

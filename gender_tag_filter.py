@@ -1,5 +1,5 @@
 """
-GenderTagFilter — ComfyUI Custom Node
+GenderTagFilter - ComfyUI Custom Node
 ======================================
 Filters and/or replaces gendered Danbooru/e621 tags in a prompt string.
 
@@ -13,7 +13,7 @@ mode                    : "off" | "strip_female_tags" | "strip_male_tags"
 
 filter_anatomy          : bool (default True)
                           Remove anatomical tags. Also scans compound tags
-                          for anatomy root words — huge_breasts, breast_grab
+                          for anatomy root words - huge_breasts, breast_grab
                           etc. are all caught even if not individually listed.
 
 filter_presentation     : bool (default False)
@@ -292,7 +292,7 @@ class GenderTagFilter:
                     "default": ", ",
                     "tooltip": (
                         "Separator used between output tags.\n"
-                        "Input is parsed forgivingly — whitespace around tags\n"
+                        "Input is parsed forgivingly - whitespace around tags\n"
                         "is stripped automatically."
                     ),
                 }),
