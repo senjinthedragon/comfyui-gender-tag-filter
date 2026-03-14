@@ -7,6 +7,7 @@ line-length = 88
 # Adding "I" ensures your imports are always sorted.
 select = ["E", "F", "I"]
 fixable = ["ALL"]
+ignore = ["E501"]
 
 [tool.ruff.format]
 # Use double quotes (standard Python style)
