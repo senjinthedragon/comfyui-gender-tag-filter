@@ -20,7 +20,7 @@ _This is an independent node pack and is not affiliated with the ComfyUI develop
 
 ## Why does this exist?
 
-Prompt expansion models such as TIPO are trained on large tag datasets that have a strong bias toward female characters and anatomy. When you feed them a male scene — particularly a gay or all-male furry scene — they frequently add female anatomy tags or feminise characters regardless of what you asked for. This causes the image model to generate unwanted female anatomy on your characters.
+Prompt expansion models such as TIPO are trained on large tag datasets that have a strong bias toward female characters and anatomy. When you feed them a male scene - particularly a gay or all-male furry scene - they frequently add female anatomy tags or feminise characters regardless of what you asked for. This causes the image model to generate unwanted female anatomy on your characters.
 
 The standard workaround of adding `ban_tags` helps but is incomplete. This node pack adds a dedicated filtering stage that sits between your prompt expander and your CLIP encoder, and strips or rewrites any vocabulary that doesn't match your intended gender.
 
@@ -43,12 +43,12 @@ Filters and rewrites gendered vocabulary in natural language prompts or mixed ta
 ## Requirements
 
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) (latest recommended)
-- Python 3.10–3.12 (comes with ComfyUI — see note below)
-- (recommended) [spaCy](https://spacy.io/) for the NL Filter node — the tag filter node has no extra dependencies
+- Python 3.10–3.12 (comes with ComfyUI - see note below)
+- (recommended) [spaCy](https://spacy.io/) for the NL Filter node - the tag filter node has no extra dependencies
 
 > [!WARNING]
 > **spaCy does not currently support Python 3.13 or 3.14.**
-> spaCy depends on `pydantic v1` and `blis`, neither of which build successfully on Python 3.13 or 3.14 as of this writing. If you are running ComfyUI under Python 3.13 or 3.14, the Gender NL Filter node will automatically fall back to regex mode and log a message in the console. Everything still works — you just won't get the accuracy benefits of spaCy until upstream support catches up.
+> spaCy depends on `pydantic v1` and `blis`, neither of which build successfully on Python 3.13 or 3.14 as of this writing. If you are running ComfyUI under Python 3.13 or 3.14, the Gender NL Filter node will automatically fall back to regex mode and log a message in the console. Everything still works - you just won't get the accuracy benefits of spaCy until upstream support catches up.
 >
 > If spaCy accuracy matters to you, create your ComfyUI venv explicitly under Python 3.12:
 >
@@ -105,7 +105,7 @@ Both nodes will appear under `utils/tags` in the node browser after a restart.
 
 ## Usage
 
-### Basic setup — tag-only prompt
+### Basic setup - tag-only prompt
 
 Drop **Gender Tag Filter** between your prompt expander (e.g. TIPO, DeduplicateTags) and your CLIP encoder:
 
@@ -116,7 +116,7 @@ TIPO → DanbooruTagSnakeCaseFixer → IllustriousPromptSorter
      → CLIPTextEncodeSDXL
 ```
 
-### Extended setup — mixed tag + natural language prompt
+### Extended setup - mixed tag + natural language prompt
 
 Chain both nodes in series. The tag filter cleans the tag portion first, then the NL filter handles any natural language fragments:
 
@@ -135,19 +135,19 @@ Since both nodes take a `STRING` input and return a `STRING` output, they wire t
 
 | Input                 | Type     | Default             | Description                                                                                                                                                                                 |
 | --------------------- | -------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `text`                | STRING   | —                   | Tag string to filter                                                                                                                                                                        |
+| `text`                | STRING   | -                   | Tag string to filter                                                                                                                                                                        |
 | `mode`                | dropdown | `strip_female_tags` | `strip_female_tags`, `strip_male_tags`, or `off`                                                                                                                                            |
 | `filter_anatomy`      | boolean  | true                | Remove explicit anatomical tags for the unwanted gender                                                                                                                                     |
 | `filter_presentation` | boolean  | false               | Also remove gendered clothing and accessory tags. Disable this if your character is crossdressing and you want to keep their outfit tags.                                                   |
 | `apply_replacements`  | boolean  | false               | Replace some removed tags with gender-appropriate counterparts instead of just deleting them (e.g. `large_breasts` → `muscular_chest`)                                                      |
 | `tag_format`          | dropdown | `underscores`       | Output word separator style. `underscores` for most models (Danbooru/e621), `spaces` for some fine-tuned models. Input tags are always accepted in either style regardless of this setting. |
-| `delimiter`           | string   | `, `                | Tag separator used in the output. Input is parsed forgivingly — leading and trailing spaces around tags are stripped automatically, so `tag1,tag2` and `tag1, tag2` both parse correctly.   |
+| `delimiter`           | string   | `, `                | Tag separator used in the output. Input is parsed forgivingly - leading and trailing spaces around tags are stripped automatically, so `tag1,tag2` and `tag1, tag2` both parse correctly.   |
 
 ### Gender NL Filter
 
 | Input                       | Type     | Default                 | Description                                                                                                                                                                                                                                                                                                                                                                                        |
 | --------------------------- | -------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `text`                      | STRING   | —                       | Prompt to filter                                                                                                                                                                                                                                                                                                                                                                                   |
+| `text`                      | STRING   | -                       | Prompt to filter                                                                                                                                                                                                                                                                                                                                                                                   |
 | `mode`                      | dropdown | `strip_female_language` | `strip_female_language`, `strip_male_language`, or `off`                                                                                                                                                                                                                                                                                                                                           |
 | `handle_negations`          | boolean  | true                    | Protect negated anatomy terms from removal. e.g. `no breasts` and `without a vagina` are left untouched. Uses spaCy dependency parsing for accuracy; the regex fallback uses a 4-token proximity heuristic.                                                                                                                                                                                        |
 | `handle_pronouns`           | boolean  | true                    | Swap binary gendered pronouns. `she/her/hers/herself` ↔ `he/him/his/himself`                                                                                                                                                                                                                                                                                                                       |
@@ -161,7 +161,7 @@ Since both nodes take a `STRING` input and return a `STRING` output, they wire t
 | Output          | Type   | Description                                       |
 | --------------- | ------ | ------------------------------------------------- |
 | `filtered_text` | STRING | The processed prompt                              |
-| `backend_used`  | STRING | `spacy`, `regex`, or `off` — useful for debugging |
+| `backend_used`  | STRING | `spacy`, `regex`, or `off` - useful for debugging |
 
 ## Crossdressing characters
 
@@ -184,19 +184,19 @@ If your character is intentionally wearing clothing associated with a different 
 Make sure the folder is directly inside `ComfyUI/custom_nodes/` and contains `__init__.py`. Restart ComfyUI fully after installing.
 
 **`backend_used` shows `regex` but I installed spaCy:**\
-Make sure you installed spaCy into the same Python environment that ComfyUI is using. If you are on the Windows portable package, use `python_embeded\python.exe -m pip install spacy` rather than a system Python. Check the ComfyUI console for the warning message — it will tell you exactly what went wrong.
+Make sure you installed spaCy into the same Python environment that ComfyUI is using. If you are on the Windows portable package, use `python_embeded\python.exe -m pip install spacy` rather than a system Python. Check the ComfyUI console for the warning message - it will tell you exactly what went wrong.
 
 **Tags with spaces are not being matched:**\
-Both nodes normalise tags internally — `large breasts` and `large_breasts` are treated as the same tag regardless of your `tag_format` setting. If a tag is still slipping through, check that it is in the blocklist. The lists are plain Python sets at the top of each file and are easy to extend.
+Both nodes normalise tags internally - `large breasts` and `large_breasts` are treated as the same tag regardless of your `tag_format` setting. If a tag is still slipping through, check that it is in the blocklist. The lists are plain Python sets at the top of each file and are easy to extend.
 
 **Negated anatomy is being removed anyway:**\
 You are likely running on the regex fallback rather than spaCy. The regex heuristic scans 4 tokens back for a negation word, which covers most cases but not all sentence structures. Install spaCy for reliable negation detection.
 
 **Plural `they/them` is being swapped when it shouldn't be:**\
-Same as above — this distinction requires spaCy. The regex fallback cannot reliably tell singular from plural `they/them` and will remap both.
+Same as above - this distinction requires spaCy. The regex fallback cannot reliably tell singular from plural `they/them` and will remap both.
 
 **spaCy fails to install with errors about `blis`, `thinc`, or `pydantic`:**\
-You are most likely running Python 3.13 or 3.14. spaCy does not currently support either version due to incompatibilities in its `pydantic v1` and `blis` dependencies. The `blis` build failure also triggers a secondary gcc error (`unrecognized command-line option '-mavx512pf'`) on systems with gcc 14 or newer, which compounds the problem. The node will run correctly on the regex fallback in the meantime. To use spaCy, recreate your ComfyUI venv under Python 3.12 — see the [Requirements](#requirements) section for instructions.
+You are most likely running Python 3.13 or 3.14. spaCy does not currently support either version due to incompatibilities in its `pydantic v1` and `blis` dependencies. The `blis` build failure also triggers a secondary gcc error (`unrecognized command-line option '-mavx512pf'`) on systems with gcc 14 or newer, which compounds the problem. The node will run correctly on the regex fallback in the meantime. To use spaCy, recreate your ComfyUI venv under Python 3.12 - see the [Requirements](#requirements) section for instructions.
 
 ## ☕ Support the Developer
 

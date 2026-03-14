@@ -1,5 +1,5 @@
 """
-GenderTagFilter — ComfyUI Custom Node
+GenderTagFilter - ComfyUI Custom Node
 ======================================
 Filters and/or replaces gendered Danbooru/e621 tags in a prompt string.
 
@@ -84,7 +84,7 @@ FEMALE_ANATOMY = {
     "jiggling_breasts",
     "topless_female",
     "nude_female",
-    "nipples",  # kept separate — could be desired for male chest too; see note below
+    "nipples",  # kept separate - could be desired for male chest too; see note below
     "pussy",
     "vagina",
     "vulva",
@@ -297,7 +297,7 @@ def filter_gender_tags(
     filter_anatomy     : Remove anatomical tags for the unwanted gender.
     filter_presentation: Also remove presentation/clothing tags.
     apply_replacements : Replace some tags with gender-opposite equivalents.
-    tag_format         : "underscores" or "spaces" — output word separator style.
+    tag_format         : "underscores" or "spaces" - output word separator style.
     delimiter          : Tag separator for output (default ", ").
                          Input is always split on the delimiter's stripped form
                          so leading/trailing spaces around tags are handled
@@ -348,7 +348,7 @@ def filter_gender_tags(
     for tag in raw_tags:
         tag_norm = normalise(tag)
 
-        # Replacement pass (before blocklist — a replacement keeps the tag alive)
+        # Replacement pass (before blocklist - a replacement keeps the tag alive)
         if apply_replacements and tag_norm in replacement_map:
             replacement = replacement_map[tag_norm]
             if replacement:
@@ -360,7 +360,7 @@ def filter_gender_tags(
         if tag_norm in blocklist:
             continue  # drop tag
 
-        # Tag survived — reformat and keep
+        # Tag survived - reformat and keep
         output_tags.append(format_tag(tag))
 
     return delimiter.join(output_tags)
@@ -455,7 +455,7 @@ class GenderTagFilter:
                         "default": ", ",
                         "tooltip": (
                             "Separator used between output tags.\n"
-                            "Input is parsed forgivingly — leading/trailing spaces\n"
+                            "Input is parsed forgivingly - leading/trailing spaces\n"
                             "around each tag are stripped automatically, so both\n"
                             "'tag1,tag2' and 'tag1, tag2' parse correctly."
                         ),

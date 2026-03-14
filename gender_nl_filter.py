@@ -1,5 +1,5 @@
 """
-GenderNLFilter — ComfyUI Custom Node
+GenderNLFilter - ComfyUI Custom Node
 ======================================
 Filters and rewrites gendered language in natural language prompts,
 or in mixed prompts containing both tags and natural language fragments.
@@ -61,9 +61,9 @@ map_neopronouns_to_binary   : bool (default True)
 
 spacy_model                 : str (default "en_core_web_sm")
                               spaCy model to use for NLP processing.
-                              "en_core_web_sm"  ~12MB  — good for most cases
-                              "en_core_web_md"  ~43MB  — better word vectors
-                              "en_core_web_lg"  ~560MB — best accuracy
+                              "en_core_web_sm"  ~12MB  - good for most cases
+                              "en_core_web_md"  ~43MB  - better word vectors
+                              "en_core_web_lg"  ~560MB - best accuracy
                               Falls back to regex if spaCy is not installed.
 
 Installation
@@ -156,12 +156,12 @@ MALE_TO_FEMALE_PRONOUNS = {
 # Index 1 = female target (used in strip_male_language mode)
 
 NEOPRONOUN_MAP = {
-    # Chakat / hermaphrodite pronouns — very common in furry fandom writing
+    # Chakat / hermaphrodite pronouns - very common in furry fandom writing
     "shi": ("he", "she"),
     "hir": ("his", "her"),
     "hirs": ("his", "hers"),
     "hirself": ("himself", "herself"),
-    # Singular they/them — gender-neutral, mainstream usage
+    # Singular they/them - gender-neutral, mainstream usage
     # Plural they/them is handled separately via spaCy morphology check.
     "they": ("he", "she"),
     "them": ("him", "her"),
@@ -180,13 +180,13 @@ NEOPRONOUN_MAP = {
     "zir": ("his", "her"),
     "zirs": ("his", "hers"),
     "zirself": ("himself", "herself"),
-    # ey/em/eir — Spivak pronouns
+    # ey/em/eir - Spivak pronouns
     "ey": ("he", "she"),
     "em": ("him", "her"),
     "eir": ("his", "her"),
     "eirs": ("his", "hers"),
     "emself": ("himself", "herself"),
-    # fae/faer — fandom-specific
+    # fae/faer - fandom-specific
     "fae": ("he", "she"),
     "faer": ("his", "her"),
     "faers": ("his", "hers"),
@@ -363,7 +363,7 @@ CLOTHING_MALE_TO_FEMALE = {
 }
 
 # ---------------------------------------------------------------------------
-# Anatomy sets (natural language — spaces not underscores)
+# Anatomy sets (natural language - spaces not underscores)
 # ---------------------------------------------------------------------------
 
 FEMALE_ANATOMY_NL = {
@@ -532,23 +532,23 @@ def _process_regex(
         clothing_map = CLOTHING_MALE_TO_FEMALE
         neo_index = 1
 
-    # Step 1 — anatomy removal
+    # Step 1 - anatomy removal
     text = _remove_anatomy_regex(text, anatomy_set, handle_negations)
 
-    # Step 2 — clothing swaps
+    # Step 2 - clothing swaps
     if swap_clothing:
         text = _apply_swap_patterns(text, _make_swap_pattern(clothing_map))
 
-    # Step 3 — neopronoun mapping (must run before binary pronouns)
+    # Step 3 - neopronoun mapping (must run before binary pronouns)
     if map_neopronouns:
         neo_swap = {k: v[neo_index] for k, v in NEOPRONOUN_MAP.items()}
         text = _apply_swap_patterns(text, _make_swap_pattern(neo_swap))
 
-    # Step 4 — binary pronoun swap
+    # Step 4 - binary pronoun swap
     if handle_pronouns:
         text = _apply_swap_patterns(text, _make_swap_pattern(pronoun_map))
 
-    # Step 5 — gendered nouns / adjectives
+    # Step 5 - gendered nouns / adjectives
     if rewrite_references:
         text = _apply_swap_patterns(text, _make_swap_pattern(word_map))
 
@@ -574,7 +574,7 @@ def _has_negation_ancestor(token) -> bool:
 def _is_plural_they(token) -> bool:
     """
     Use spaCy morphology to distinguish singular they (gender-neutral pronoun)
-    from plural they (multiple subjects). Returns True when plural — in which
+    from plural they (multiple subjects). Returns True when plural - in which
     case the token should be left untouched.
     """
     number = token.morph.get("Number")
@@ -615,7 +615,7 @@ def _process_spacy(
         clothing_map = CLOTHING_MALE_TO_FEMALE
         neo_index = 1
 
-    # Fix word_map assignment — should match mode
+    # Fix word_map assignment - should match mode
     if mode == "strip_female_language":
         word_map = FEMALE_TO_MALE_WORDS
     else:
@@ -885,9 +885,9 @@ class GenderNLFilter:
                         "default": "en_core_web_sm",
                         "tooltip": (
                             "spaCy model to use for NLP processing.\n"
-                            "en_core_web_sm  ~12MB  — good for most cases (recommended)\n"
-                            "en_core_web_md  ~43MB  — better word vectors\n"
-                            "en_core_web_lg  ~560MB — best accuracy\n"
+                            "en_core_web_sm  ~12MB  - good for most cases (recommended)\n"
+                            "en_core_web_md  ~43MB  - better word vectors\n"
+                            "en_core_web_lg  ~560MB - best accuracy\n"
                             "Falls back to regex automatically if spaCy is not installed.\n"
                             "See node pack README for installation instructions."
                         ),
