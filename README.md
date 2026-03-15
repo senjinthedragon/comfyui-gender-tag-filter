@@ -194,6 +194,9 @@ Make sure the folder is directly inside `ComfyUI/custom_nodes/` and contains `__
 **`backend_used` shows `regex` but I installed spaCy:**\
 Make sure you installed spaCy into the same Python environment that ComfyUI is using. If you are on the Windows portable package, use `python_embeded\python.exe -m pip install spacy` rather than a system Python. Check the ComfyUI console for the warning message - it will tell you exactly what went wrong.
 
+**Compound tags like `furry with non-furry` or `tongue out` are being treated as natural language:**\
+Update to v1.0.1 - this was a bug in the NL fragment detector's stop word list. Words like `with`, `out`, `from`, `at` were incorrectly flagged as natural language markers, causing common Danbooru compound tags to bypass underscore formatting.
+
 **Tags with spaces are not being matched:**\
 Both nodes normalise tags internally - `large breasts` and `large_breasts` are treated as the same tag regardless of your `tag_format` setting. If a tag is still slipping through, check that it is in the blocklist in `gender_shared.py`. The lists are plain Python sets and are easy to extend.
 

@@ -159,12 +159,21 @@ def filter_gender_tags(
         tag_norm = normalise_tag(tag)
 
         # ── Negation guard ────────────────────────────────────────────────
-        # If the whole remaining text contains this tag in a negated context
-        # (e.g. "no breasts" appearing as part of a mixed prompt) skip it.
-        # This is approximate for tag-only prompts but protects mixed prompts.
-        if handle_negations and is_negated_regex(text, tag_norm.replace("_", " ")):
-            output_tags.append(_format(tag))
-            continue
+        # Only applies to NL fragments - for standalone tags, a "no_breasts"
+        # tag elsewhere in the list is an independent model instruction with
+        # no grammatical relationship to a standalone "breasts" tag.
+        # We detect NL context by checking if the tag itself contains a
+        # negation word as a compound component (e.g. "no_breasts" starts
+        # with "no") - those are Danbooru negation tags and won't be in the
+        # blocklist anyway, so the guard only matters for mixed NL prompts
+        # where a sentence like "without breasts" appears as a chunk.
+        # We therefore only run the negation guard on multi-word chunks that
+        # look like they could be part of a sentence rather than a pure tag.
+        tag_words = tag_norm.replace("_", " ").split()
+        if handle_negations and len(tag_words) > 1:
+            if is_negated_regex(tag, tag_norm.replace("_", " ")):
+                output_tags.append(_format(tag))
+                continue
 
         # ── Neopronoun mapping ────────────────────────────────────────────
         if map_neopronouns and tag_norm in neo_swap:

@@ -17,8 +17,8 @@ generation models have been trained to recognise.
 ==========================================================================
 """
 
-import logging
 import re
+import logging
 
 log = logging.getLogger(__name__)
 
@@ -107,15 +107,28 @@ def apply_swap_patterns(text: str, patterns: list) -> str:
 
 
 def normalise_tag(tag: str) -> str:
-    """Collapse spaces and underscores to underscores for map lookups."""
-    return tag.lower().replace(" ", "_")
+    """
+    Collapse spaces and underscores to underscores for map lookups.
+    Backslash-escaped sequences (e.g. Danbooru \( and \)) are preserved.
+    Uses regex to only replace spaces not preceded by a backslash.
+    """
+    # Replace backslash-space sequences temporarily to protect them
+    protected = re.sub(r'\\(.)', r'BSESC\1BSESC', tag.lower())
+    converted = protected.replace(" ", "_")
+    return re.sub(r'BSESC(.)BSESC', r'\\\1', converted)
 
 
 def format_tag(tag: str, tag_format: str) -> str:
-    """Apply the chosen output format to a tag."""
+    """
+    Apply the chosen output format to a tag.
+    Backslash-escaped sequences are preserved regardless of format.
+    """
+    protected = re.sub(r'\\(.)', r'BSESC\1BSESC', tag)
     if tag_format == "spaces":
-        return tag.replace("_", " ")
-    return tag.replace(" ", "_")
+        converted = protected.replace("_", " ")
+    else:
+        converted = protected.replace(" ", "_")
+    return re.sub(r'BSESC(.)BSESC', r'\\\1', converted)
 
 
 # ---------------------------------------------------------------------------
@@ -123,19 +136,27 @@ def format_tag(tag: str, tag_format: str) -> str:
 # ---------------------------------------------------------------------------
 
 NL_STOP_WORDS = {
-    "a", "an", "the", "is", "was", "are", "were", "be", "been", "being",
-    "at", "in", "on", "of", "to", "for", "with", "from", "by", "as",
-    "and", "or", "but", "so", "yet", "nor",
-    "around", "through", "into", "over", "under", "between", "against",
-    "he", "she", "they", "it", "we", "you", "i",
+    # Articles and copulas - never appear in Danbooru tags
+    "a", "an", "the",
+    "is", "was", "are", "were", "be", "been", "being",
+    # Conjunctions that do NOT appear in Danbooru tag connectors.
+    # Note: "with", "and", "or", "in", "on", "of", "at", "from", "by",
+    # "up", "down", "out", "off", "away", "over", "under", "around"
+    # are intentionally excluded - they are common in Danbooru compound
+    # tags such as "furry with non-furry", "tongue out", "from behind",
+    # "looking at viewer", "thumbs up", "bent over" etc.
+    "but", "so", "yet", "nor",
+    "through", "into", "between", "against",
+    # Personal pronouns - these do not appear in Danbooru tags
+    "he", "she", "they", "we", "you",
     "his", "her", "their", "its", "our", "your", "my",
     "him", "them", "us",
     "this", "that", "these", "those",
-    "up", "down", "out", "off", "away",
-    "every", "each", "all", "both", "either",
-    "got", "get", "gets", "had", "has", "have",
-    "took", "take", "takes", "step", "steps", "stepped",
-    "wore", "wear", "wears", "worn",
+    "every", "either",
+    # Verb forms that would never appear in a pure tag list
+    "got", "had", "has", "have",
+    "took", "stepped",
+    "wore", "worn",
 }
 
 
@@ -619,6 +640,7 @@ MALE_TO_FEMALE_CLOTHING = {
     "boots":                "high_heels",
     "jockstrap":            None,
     "male_underwear":       None,
+    "boxer_briefs":         None,
     "chest_hair":           None,
     "body_hair":            None,
     "masculine":            "feminine",

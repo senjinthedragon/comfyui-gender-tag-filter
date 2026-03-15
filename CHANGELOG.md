@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.0.1] - 2026-03-15
+
+### Fixed
+
+- **Negation guard false positive on standalone tags** (`gender_tag_filter.py`): when a tag list contained both `no_breasts` and `breasts` as separate tags, the negation guard was scanning the entire input string for negation context. It found `no` near `breasts` earlier in the string and incorrectly preserved the standalone `breasts` tag. The guard now only applies to multi-word chunks - a single-word tag cannot be negated within itself, and a `no_breasts` compound tag elsewhere in the list has no grammatical relationship to a standalone `breasts` tag.
+
+- **`NL_STOP_WORDS` false positives on common Danbooru compound tags** (`gender_shared.py`): words like `with`, `and`, `in`, `on`, `of`, `at`, `from`, `by`, `up`, `down`, `out`, `off`, `away`, `over`, `under`, `around` were in the stop word list used to detect natural language fragments. These are extremely common in Danbooru compound tags - `furry with non-furry`, `tongue out`, `from behind`, `looking at viewer`, `thumbs up`, `bent over` etc. - causing them to be misidentified as natural language and have their spaces incorrectly preserved rather than converted to underscores. The stop word list has been trimmed to only words that genuinely never appear in tag lists: articles, copulas, personal pronouns, and a small set of verb forms.
+
+- **Backslash-escaped parentheses corrupted by tag formatter** (`gender_shared.py`): Danbooru tags containing backslash-escaped parentheses (e.g. `lizardman \(warcraft\)`) had their backslashes stripped during space-to-underscore conversion, producing malformed output. `normalise_tag` and `format_tag` now use a protect-convert-restore pattern to preserve all backslash-escaped sequences intact.
+
+---
+
 ## [1.0.0] - 2026-03-14
 
 ### Added
@@ -75,4 +87,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.0.1]: https://github.com/senjinthedragon/comfyui-gender-tag-filter/releases/tag/v1.0.1
 [1.0.0]: https://github.com/senjinthedragon/comfyui-gender-tag-filter/releases/tag/v1.0.0
