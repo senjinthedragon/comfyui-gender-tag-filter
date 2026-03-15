@@ -1,3 +1,14 @@
+"""
+__init__.py - comfyui-gender-tag-filter: Node Pack Entry Point
+Copyright (c) 2026 Senjin the Dragon.
+https://github.com/senjinthedragon/comfyui-gender-tag-filter
+Licensed under the MIT License.
+See LICENSE for full license information.
+
+Registers all three nodes with ComfyUI: GenderTagFilter, GenderNLFilter,
+and DedupeTags. All nodes appear under the utils/tags category.
+"""
+
 from .gender_tag_filter import (
     NODE_CLASS_MAPPINGS as TAG_CLASS_MAPPINGS,
     NODE_DISPLAY_NAME_MAPPINGS as TAG_DISPLAY_MAPPINGS,

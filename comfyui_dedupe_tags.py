@@ -1,17 +1,14 @@
+# comfyui_dedupe_tags.py
 """
-DedupeTags - ComfyUI Custom Node
-======================================
-Removes duplicate tags from a comma-separated tag string, keeping the
-first occurrence of each tag.
+comfyui_dedupe_tags.py - comfyui-gender-tag-filter: Dedupe Tags Node
+Copyright (c) 2026 Senjin the Dragon.
+https://github.com/senjinthedragon/comfyui-gender-tag-filter
+Licensed under the MIT License.
+See LICENSE for full license information.
 
-Part of the comfyui-gender-tag-filter node pack.
-Install: drop the entire node pack folder into ComfyUI/custom_nodes/ and restart.
-
-Deduplication is case-insensitive by default and treats underscores and
-spaces as equivalent, so "big_breasts" and "big breasts" are considered
-the same tag. The first occurrence is kept in its original form.
+ComfyUI node (DedupeTags) that removes duplicate tags from a
+comma-separated tag string, keeping the first occurrence of each.
 """
-
 
 class DedupeTags:
     """
@@ -20,7 +17,7 @@ class DedupeTags:
     Leading/trailing whitespace is stripped from each tag.
     Empty tags (e.g. from double commas) are also removed.
     Underscore and space variants of the same tag are treated as duplicates
-    (e.g. "big_breasts" and "big breasts" are considered identical).
+    (e.g. "big_fingers" and "big fingers" are considered identical).
     """
 
     @classmethod
@@ -50,8 +47,6 @@ class DedupeTags:
 
         for tag in tags:
             # Normalise to lowercase with underscores for dedupe comparison.
-            # This treats "big_breasts" and "big breasts" as the same tag
-            # regardless of which form the upstream node produced.
             if case_sensitive:
                 key = tag.replace(" ", "_")
             else:

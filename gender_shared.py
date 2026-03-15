@@ -1,8 +1,9 @@
 """
-gender_shared.py - Shared data and utilities
-=============================================
-Used by both GenderTagFilter and GenderNLFilter.
-Do not import ComfyUI-specific code here.
+gender_shared.py - comfyui-gender-tag-filter: Shared Data and Utilities
+Copyright (c) 2026 Senjin the Dragon.
+https://github.com/senjinthedragon/comfyui-gender-tag-filter
+Licensed under the MIT License.
+See LICENSE for full license information.
 
 ==========================================================================
 IMPORTANT NOTE
@@ -15,6 +16,19 @@ It makes no claims about gender identity, linguistics, or real people.
 All word mappings are chosen purely on the basis of what AI image
 generation models have been trained to recognise.
 ==========================================================================
+
+Shared data maps and utility functions imported by all gender filter nodes
+in this pack.
+Do not import ComfyUI-specific code here.
+
+Contains the spaCy lazy loader (cached per model name), tag normalisation,
+NL/tag detection helpers, negation detection (both spaCy dependency-tree and
+regex fallback), all pronoun maps, gendered noun/adjective maps, anatomy sets
+and replacement maps (tag format and NL format), clothing swap maps (underscore
+and space format), the full neopronoun map, and the dangling adjective pattern.
+
+Adding a new tag, swap pair, or neopronoun in this file automatically applies
+the change to all three nodes without touching their individual files.
 """
 
 import re

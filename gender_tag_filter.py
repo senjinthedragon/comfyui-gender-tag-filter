@@ -1,11 +1,35 @@
 """
-GenderTagFilter - ComfyUI Custom Node
-======================================
-Filters and/or replaces gendered Danbooru/e621 tags in a prompt string.
+gender_tag_filter.py - comfyui-gender-tag-filter: Gender Tag Filter Node
+Copyright (c) 2026 Senjin the Dragon.
+https://github.com/senjinthedragon/comfyui-gender-tag-filter
+Licensed under the MIT License.
+See LICENSE for full license information.
 
-Designed to work standalone or as the first stage in a mixed tag+NL pipeline:
+==========================================================================
+IMPORTANT NOTE
+==========================================================================
+This node is a prompt engineering utility for AI image generation models.
+Its sole purpose is to help these models produce output that matches the
+user's intended scene by adjusting the vocabulary in the prompt string.
 
-    [prompt] -> GenderTagFilter -> GenderNLFilter -> CLIPTextEncodeSDXL
+It makes no claims about gender identity, linguistics, or real people.
+Pronoun and word mappings are chosen purely on the basis of what AI image
+generation models have been trained to recognise.
+==========================================================================
+
+ComfyUI node (GenderTagFilter) that filters and replaces gendered vocabulary
+in Danbooru and e621 style tag lists.
+
+Designed to sit between a prompt expander (e.g. TIPO) and the CLIP encoder,
+or as the first stage in a chained tag+NL pipeline followed by GenderNLFilter.
+
+Tag processing runs in priority order: NL fragment detection, negation guard,
+neopronoun mapping, anatomy replacement, exact blocklist match (with optional
+clothing swap), compound root scan. Natural language fragments mixed into the
+tag list by TIPO are detected via spaCy dependency parsing (stop-word heuristic
+fallback) and passed through untouched so GenderNLFilter can handle them.
+
+All data maps and utility functions are imported from gender_shared.py.
 
 Controls
 --------

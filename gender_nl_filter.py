@@ -1,14 +1,9 @@
 """
-GenderNLFilter - ComfyUI Custom Node
-======================================
-Filters and rewrites gendered language in natural language prompts,
-or in mixed prompts containing both tags and natural language fragments.
-
-Designed to chain after GenderTagFilter for mixed-content pipelines:
-
-    [prompt] -> GenderTagFilter -> GenderNLFilter -> CLIPTextEncodeSDXL
-
-Both nodes accept and output STRING, so they wire together naturally.
+gender_nl_filter.py - comfyui-gender-tag-filter: Gender NL Filter Node
+Copyright (c) 2026 Senjin the Dragon.
+https://github.com/senjinthedragon/comfyui-gender-tag-filter
+Licensed under the MIT License.
+See LICENSE for full license information.
 
 ==========================================================================
 IMPORTANT NOTE
@@ -21,6 +16,23 @@ It makes no claims about gender identity, linguistics, or real people.
 Pronoun and word mappings are chosen purely on the basis of what AI image
 generation models have been trained to recognise.
 ==========================================================================
+
+ComfyUI node (GenderNLFilter) that filters and rewrites gendered vocabulary
+in natural language prompts or mixed tag+NL prompts.
+
+Designed to chain directly after GenderTagFilter. Input is split on commas
+and each chunk is checked against chunk_is_tag() before processing - chunks
+that look like standalone tags are passed through untouched to avoid
+double-processing content already handled by GenderTagFilter.
+Both nodes accept and output STRING, so they wire together naturally.
+
+Uses spaCy for accurate negation detection (dependency tree neg relation),
+plural they/them disambiguation (morphology + subject count heuristic), and
+multi-word clothing span matching (token-index lookahead). Falls back to regex
+processing automatically if spaCy is not installed, with a warning logged to
+the ComfyUI console.
+
+All data maps and utility functions are imported from gender_shared.py.
 
 Controls
 --------
