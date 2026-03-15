@@ -109,7 +109,7 @@ def apply_swap_patterns(text: str, patterns: list) -> str:
 def normalise_tag(tag: str) -> str:
     """
     Collapse spaces and underscores to underscores for map lookups.
-    Backslash-escaped sequences (e.g. Danbooru \( and \)) are preserved.
+    Backslash-escaped sequences (e.g. Danbooru \\( and \\)) are preserved.
     Uses regex to only replace spaces not preceded by a backslash.
     """
     # Replace backslash-space sequences temporarily to protect them
