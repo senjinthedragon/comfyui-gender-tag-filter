@@ -1,24 +1,21 @@
-# v1.0.1 - Patch: Tag Detection Fixes
+# 🏷️ v1.1.0 - Dedupe Tags joins the pack
 
-Three bug fixes, no new features, no workflow changes needed.
-
----
-
-## What was broken
-
-**`furry with non-furry` and similar compound tags were losing their underscores.**
-The natural language detector used a stop word list to distinguish NL prose from tags. That list included common words like `with`, `out`, `from`, `at`, `in`, `on`, `by` - which are also extremely common in Danbooru compound tags. `furry with non-furry`, `tongue out`, `from behind`, `looking at viewer`, `thumbs up`, `bent over` were all being misidentified as natural language and having their spaces preserved rather than converted to underscores. For a node pack built for the furry community this was an embarrassingly visible bug.
-
-**`breasts` was surviving the filter when `no_breasts` appeared earlier in the same tag list.**
-The negation guard was scanning the entire input string for negation context. When evaluating a standalone `breasts` tag it found `no` near `breasts` elsewhere in the string and incorrectly decided `breasts` was negated. In a comma-separated tag list, `no_breasts` and `breasts` are two independent instructions with no grammatical relationship to each other.
-
-**`lizardman \(warcraft\)` and similar Danbooru copyright tags were being mangled.**
-The tag formatter was doing a blanket space-to-underscore conversion that stripped backslashes, turning `lizardman \(warcraft\)` into malformed output. Backslash-escaped sequences are now protected through the conversion and restored intact.
+One new node, and the full pipeline now ships as a single install.
 
 ---
 
-## Who should update
+## What's new
 
-Anyone using the Gender Tag Filter with TIPO output that contains compound tags - which is essentially everyone using this in a furry workflow. The `breasts` fix is particularly important if your tag source ever produces both `no_breasts` and `breasts` as separate tags, which TIPO does.
+**Dedupe Tags is now part of the node pack.**
 
-No changes to node inputs, outputs, or workflow JSON. Drop in the updated files and restart ComfyUI.
+It's the node you want between your tag concatenation step and the Gender Tag Filter. It removes duplicate tags from a comma-separated string, keeping the first occurrence of each.
+
+The smart part: it treats underscores and spaces as equivalent, so `big_breasts` and `big breasts` are correctly identified as the same tag regardless of which form upstream nodes produce. TIPO and other prompt expanders regularly output both forms when you concatenate a static quality tag prefix with their output - without this, both variants survive and reach the CLIP encoder.
+
+The node sits in the `utils/tags` category alongside the gender filter nodes, and like them it strips empty tags and double-comma artefacts automatically.
+
+---
+
+## Installation
+
+No workflow changes needed if you were already using a dedupe node. The class name is `DedupeTags` and all inputs are identical to what you'd expect. Just update the pack and restart ComfyUI.

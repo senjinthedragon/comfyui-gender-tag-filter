@@ -40,6 +40,12 @@ Filters and rewrites gendered vocabulary in natural language prompts or mixed ta
 
 **Best used for:** natural language prompts, SillyTavern character card descriptions, or as the second stage after Gender Tag Filter.
 
+### Dedupe Tags 🏷️
+
+Removes duplicate tags from a comma-separated tag string, keeping the first occurrence of each. Treats underscores and spaces as equivalent so `big_breasts` and `big breasts` are correctly identified as the same tag regardless of which form upstream nodes produce. Case-insensitive by default.
+
+**Best used for:** cleaning up merged tag strings before they reach the CLIP encoder, particularly after concatenating a static quality tag prefix with TIPO output.
+
 ## Requirements
 
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) (latest recommended)
@@ -80,6 +86,7 @@ ComfyUI/custom_nodes/comfyui-gender-tag-filter/
     gender_shared.py
     gender_tag_filter.py
     gender_nl_filter.py
+    comfyui_dedupe_tags.py
     README.md
 ```
 
@@ -108,11 +115,11 @@ Both nodes will appear under `utils/tags` in the node browser after a restart.
 
 ### Basic setup - tag-only prompt
 
-Drop **Gender Tag Filter** between your prompt expander (e.g. TIPO, DeduplicateTags) and your CLIP encoder:
+Drop **Gender Tag Filter** between your prompt expander (e.g. TIPO, DedupeTags) and your CLIP encoder:
 
 ```
 TIPO → DanbooruTagSnakeCaseFixer → IllustriousPromptSorter
-     → StringConcatenate → DeduplicateTags
+     → StringConcatenate → [Dedupe Tags]
      → [Gender Tag Filter]
      → CLIPTextEncodeSDXL
 ```
@@ -122,7 +129,7 @@ TIPO → DanbooruTagSnakeCaseFixer → IllustriousPromptSorter
 Chain both nodes in series. The tag filter cleans the tag portion first, then the NL filter handles any natural language fragments:
 
 ```
-... → DeduplicateTags → [Gender Tag Filter] → [Gender NL Filter] → CLIPTextEncodeSDXL
+... → DedupeTags → [Gender Tag Filter] → [Gender NL Filter] → CLIPTextEncodeSDXL
 ```
 
 Since both nodes take a `STRING` input and return a `STRING` output, they wire together directly with no adapter nodes needed.
@@ -170,6 +177,14 @@ Since both nodes take a `STRING` input and return a `STRING` output, they wire t
 | --------------- | ------ | ------------------------------------------------- |
 | `filtered_text` | STRING | The processed prompt                              |
 | `backend_used`  | STRING | `spacy`, `regex`, or `off` - useful for debugging |
+
+### Dedupe Tags
+
+| Input            | Type    | Default | Description                                                                                                                                            |
+| ---------------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `text`           | STRING  | -       | Comma-separated tag string to dedupe                                                                                                                   |
+| `delimiter`      | string  | `, `    | Separator used in the output                                                                                                                           |
+| `case_sensitive` | boolean | false   | When off, `Big_Breasts` and `big breasts` are treated as the same tag. When on, only exact matches (after underscore/space normalisation) are deduped. |
 
 ## Crossdressing characters
 
