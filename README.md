@@ -1,5 +1,7 @@
 # ComfyUI Gender Tag Filter
 
+[![Comfy Registry](https://img.shields.io/endpoint?url=https://registry.comfy.org/api/v1/badge/nodes/comfyui-gender-tag-filter)](https://registry.comfy.org/nodes/comfyui-gender-tag-filter)
+![GitHub Release Date](https://img.shields.io/github/release-date/senjinthedragon/comfyui-gender-tag-filter)
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple.svg)](https://opensource.org/licenses/MIT)
 [![Author: Senjin the Dragon](https://img.shields.io/badge/Author-Senjin_the_Dragon-gold.svg)](https://github.com/senjinthedragon)
 
