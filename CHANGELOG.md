@@ -5,9 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
----
+## [1.2.0] - TBD
 
-## [1.1.0] - TBD
+### Fixed
+
+- Date for last release in the CHANGELOG.md is now correct
+
+## [1.1.0] - 2026-03-16
 
 ### Added
 
@@ -19,8 +23,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Case-insensitive comparison by default; `case_sensitive` toggle available for edge cases
 - Empty tags and double-comma artefacts are stripped automatically
 - Moved from `utils/text` to `utils/tags` category to sit alongside the gender filter nodes
-
----
 
 ## [1.0.2] - 2026-03-16
 
@@ -37,8 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`NL_STOP_WORDS` false positives on common Danbooru compound tags** (`gender_shared.py`): words like `with`, `and`, `in`, `on`, `of`, `at`, `from`, `by`, `up`, `down`, `out`, `off`, `away`, `over`, `under`, `around` were in the stop word list used to detect natural language fragments. These are extremely common in Danbooru compound tags - `furry with non-furry`, `tongue out`, `from behind`, `looking at viewer`, `thumbs up`, `bent over` etc. - causing them to be misidentified as natural language and have their spaces incorrectly preserved rather than converted to underscores. The stop word list has been trimmed to only words that genuinely never appear in tag lists: articles, copulas, personal pronouns, and a small set of verb forms.
 
 - **Backslash-escaped parentheses corrupted by tag formatter** (`gender_shared.py`): Danbooru tags containing backslash-escaped parentheses (e.g. `lizardman \(warcraft\)`) had their backslashes stripped during space-to-underscore conversion, producing malformed output. `normalise_tag` and `format_tag` now use a protect-convert-restore pattern to preserve all backslash-escaped sequences intact.
-
----
 
 ## [1.0.0] - 2026-03-14
 
@@ -105,8 +105,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### Known Issues
 
 - spaCy cannot currently be installed on Python 3.13 or 3.14 due to incompatibilities in its `pydantic v1` and `blis` dependencies. On Python 3.14, `blis` additionally fails to compile because gcc 14 dropped support for the `-mavx512pf` flag that the bundled `blis 0.7.x` source requires. Both nodes automatically fall back to regex mode on affected systems. Workaround: create your ComfyUI venv under Python 3.12.
-
----
 
 [1.1.0]: https://github.com/senjinthedragon/comfyui-gender-tag-filter/releases/tag/v1.1.0
 [1.0.1]: https://github.com/senjinthedragon/comfyui-gender-tag-filter/releases/tag/v1.0.1
