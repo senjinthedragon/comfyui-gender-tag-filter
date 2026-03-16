@@ -29,14 +29,8 @@ Documentation = "https://github.com/senjinthedragon/comfyui-gender-tag-filter#re
 
 [tool.comfy]
 PublisherId = "senjinthedragon"
-DisplayName = "comfyui-gender-tag-filter"
+DisplayName = "Gender Tag Filter"
 Icon = ""
-includes = [
-    "LICENSE",
-    "README.md",
-    "CHANGELOG.md",
-    "RELEASE_NOTES.md",
-    "assets/"
-] 
+includes = [] 
 # "requires-comfyui" = ">=1.0.0"  # ComfyUI version compatibility
 
