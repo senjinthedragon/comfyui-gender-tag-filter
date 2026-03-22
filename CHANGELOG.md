@@ -11,14 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 #### SpaCy Model Loader node (`SpaCyModelLoader`)
 
-- New `SpaCyModelLoader` node that loads a spaCy language model from `ComfyUI/models/spacy/` and outputs it as a typed `SPACY_NLP` object
-- Model dropdown is populated automatically by scanning the `models/spacy/` folder for valid model directories — any subfolder containing `meta.json` appears as an option
+- New `SpaCyModelLoader` node that loads a spaCy language model and outputs it as a typed `SPACY_NLP` object
+- Model dropdown is populated automatically via `spacy.util.get_installed_models()` — install a model with `python -m spacy download <model>` and it appears in the dropdown after a ComfyUI restart, no folder management needed
 - `SPACY_NLP` is a custom ComfyUI type: only `SpaCyModelLoader` outputs can wire into the `spacy_nlp` inputs on the filter nodes, enforced by the ComfyUI type system
-- `models/spacy/` is registered with `folder_paths` and created automatically on first launch
-- Detects the common mistake of placing the outer pip package wrapper folder (e.g. `en_core_web_sm/`) instead of the inner versioned model folder (`en_core_web_sm-3.8.0/`): the wrapper folder appears in the dropdown, and selecting it produces a clear error showing the exact `From:` and `To:` paths to fix the placement
-- Raises a specific error if spaCy is not installed, with the install command
-- Raises a specific error if `models/spacy/` is empty, with instructions for downloading and placing a model
-- Models are loaded by path rather than pip package name — fully independent of any other nodes that use spaCy
+- Raises a clear error if spaCy is not installed or no models are downloaded yet, with the exact commands to fix it
+
+#### Gender Tag Filter (`GenderTagFilter`)
+
+- `format_only` mode: applies `use_underscores` formatting with no filtering — useful for normalising tag spacing without any gender processing. Special syntax and NL fragments pass through untouched as in the filter modes.
 
 #### Gender Tag Filter (`GenderTagFilter`) and Gender NL Filter (`GenderNLFilter`)
 

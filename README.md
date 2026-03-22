@@ -64,7 +64,7 @@ Removes duplicate tags from a comma-separated tag string, keeping the first occu
 
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) (latest recommended)
 - Python 3.10–3.12 (comes with ComfyUI - see note below)
-- (recommended) [spaCy](https://spacy.io/) for the SpaCy Model Loader node - the filter nodes work without it but fall back to regex/heuristic mode
+- (recommended) [spaCy](https://spacy.io/) with at least one model installed — the filter nodes work without it but fall back to regex/heuristic mode
 
 > [!WARNING]
 > **spaCy does not currently support Python 3.13 or 3.14.**
@@ -111,27 +111,10 @@ Both filter nodes benefit from spaCy. The Gender NL Filter uses it for accurate 
 
 ```shell
 pip install spacy
-```
-
-Then download a model and place it in `ComfyUI/models/spacy/`. The `models/spacy/` folder is created automatically on first launch.
-
-```shell
 python -m spacy download en_core_web_sm
-# then move the downloaded model folder into ComfyUI/models/spacy/
 ```
 
-The downloaded package has a nested structure — you want the **inner versioned folder** (the one containing `meta.json`), not the outer package wrapper:
-
-```text
-venv/lib/python3.x/site-packages/
-  en_core_web_sm/              <- outer wrapper — do NOT copy this
-    __init__.py
-    en_core_web_sm-3.8.0/      <- copy THIS into models/spacy/
-      meta.json
-      ...
-```
-
-Move `en_core_web_sm-3.8.0/` into `ComfyUI/models/spacy/` (you can rename it to `en_core_web_sm` for clarity). If you accidentally place the outer folder, the SpaCy Model Loader will detect it and tell you exactly which inner folder to move and where.
+That's it. The SpaCy Model Loader detects all models installed in the current Python environment and lists them in its dropdown automatically — no folder management needed.
 
 > [!TIP]
 > If you are running ComfyUI in a virtual environment, activate it before running the commands above. If you installed ComfyUI via the Windows portable package, use the `python_embeded` Python that ships with it:
@@ -178,7 +161,7 @@ Since both nodes take a `STRING` input and return a `STRING` output, they wire t
 | Input                 | Type     | Default             | Description                                                                                                                                                                                                                      |
 | --------------------- | -------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `text`                | STRING   | -                   | Tag string to filter                                                                                                                                                                                             |
-| `mode`                | dropdown | `strip_female_tags` | `strip_female_tags`, `strip_male_tags`, or `off`                                                                                                                                                                 |
+| `mode`                | dropdown | `strip_female_tags` | `strip_female_tags`, `strip_male_tags`, `format_only` (apply `use_underscores` with no filtering), or `off`                                                                                                      |
 | **Anatomy**           |          |                     |                                                                                                                                                                                                                  |
 | `filter_anatomy`      | boolean  | true                | Remove anatomical tags. Also scans compound tags for root words, so `huge_breasts`, `breast_grab` etc. are caught even if not individually listed.                                                               |
 | `replace_anatomy`     | boolean  | false               | Replace removed anatomy tags with gender-appropriate counterparts instead of deleting them. e.g. `large_breasts` → `muscular_chest`, `breasts` → `pecs`. No effect when `filter_anatomy` is off.                 |
@@ -233,7 +216,7 @@ Since both nodes take a `STRING` input and return a `STRING` output, they wire t
 
 | Input   | Type     | Default | Description                                                                                                                                                                                |
 | ------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `model` | dropdown | -       | spaCy model to load. Populated automatically from `ComfyUI/models/spacy/`. Any subfolder containing a `meta.json` appears here. See [spaCy model sizes](#spacy-model-sizes) for options. |
+| `model` | dropdown | -       | spaCy model to load. Populated automatically from all models installed in the current Python environment via `spacy.util.get_installed_models()`. Install a model with `python -m spacy download <model_name>` and restart ComfyUI. See [spaCy model sizes](#spacy-model-sizes) for options. |
 
 **Outputs:**
 
@@ -270,14 +253,11 @@ If your character is intentionally wearing clothing associated with a different 
 **Node doesn't appear in ComfyUI:**\
 Make sure the folder is directly inside `ComfyUI/custom_nodes/` and contains `__init__.py`. Restart ComfyUI fully after installing.
 
-**SpaCy Model Loader shows "(no models found)":**\
-No valid model folder was found in `ComfyUI/models/spacy/`. Make sure you placed the inner versioned folder (the one containing `meta.json`) there, not the outer pip package wrapper. See the installation instructions above for the exact folder to copy.
-
-**SpaCy Model Loader says "outer pip package folder":**\
-You placed the outer wrapper folder into `models/spacy/` instead of the inner model. The error message shows the exact `From:` and `To:` paths — just move the folder it points to and restart ComfyUI.
+**SpaCy Model Loader shows "(no spaCy models installed)":**\
+Run `python -m spacy download en_core_web_sm` in the same Python environment as ComfyUI, then restart ComfyUI. If you are on the Windows portable package, use `python_embeded\python.exe -m spacy download en_core_web_sm`.
 
 **SpaCy Model Loader raises an error about spaCy not being installed:**\
-Confirm spaCy is installed in the same Python environment as ComfyUI. If you are on the Windows portable package, use `python_embeded\python.exe -m pip install spacy` rather than a system Python.
+Run `pip install spacy` in the same Python environment as ComfyUI, then download a model. If you are on the Windows portable package, use `python_embeded\python.exe -m pip install spacy`.
 
 **Compound tags like `furry with non-furry` or `tongue out` are being treated as natural language:**\
 Update to v1.0.1 - this was a bug in the NL fragment detector's stop word list. Words like `with`, `out`, `from`, `at` were incorrectly flagged as natural language markers, causing common Danbooru compound tags to bypass underscore formatting.

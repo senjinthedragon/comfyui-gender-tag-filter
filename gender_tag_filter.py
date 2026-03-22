@@ -140,6 +140,25 @@ def filter_gender_tags(
     for chunk in raw_chunks:
         raw_tags.extend(t.strip() for t in chunk.split(",") if t.strip())
 
+    def _format(tag: str) -> str:
+        return format_tag(tag, "underscores" if use_underscores else "spaces")
+
+    # ── Format-only mode ──────────────────────────────────────────────────────
+    # No filtering — just normalise and reformat each tag. Special syntax and
+    # NL fragments pass through untouched exactly as in the filter modes.
+    if mode == "format_only":
+        output_tags = []
+        for tag in raw_tags:
+            if is_special_syntax(tag) or is_break_keyword(tag):
+                output_tags.append(tag)
+                continue
+            inner_tag, emph_prefix, emph_suffix = unwrap_emphasis(tag)
+            if is_natural_language(inner_tag, nlp):
+                output_tags.append(tag)
+                continue
+            output_tags.append(rewrap_emphasis(_format(inner_tag), emph_prefix, emph_suffix))
+        return ", ".join(output_tags)
+
     if mode == "strip_female_tags":
         anatomy_blocklist      = FEMALE_ANATOMY
         presentation_blocklist = FEMALE_PRESENTATION
@@ -165,9 +184,6 @@ def filter_gender_tags(
 
     # Build neopronoun swap map for this mode
     neo_swap = {k: v[neo_index] for k, v in NEOPRONOUN_MAP.items()}
-
-    def _format(tag: str) -> str:
-        return format_tag(tag, "underscores" if use_underscores else "spaces")
 
     output_tags = []
     for tag in raw_tags:
@@ -270,12 +286,13 @@ class GenderTagFilter:
                     "default": "",
                     "tooltip": "Tag string to filter. NL fragments are detected and preserved automatically.",
                 }),
-                "mode": (["off", "strip_female_tags", "strip_male_tags"], {
+                "mode": (["off", "strip_female_tags", "strip_male_tags", "format_only"], {
                     "default": "strip_female_tags",
                     "tooltip": (
                         "'strip_female_tags' -> remove female anatomy/presentation tags\n"
                         "'strip_male_tags'   -> remove male anatomy/presentation tags\n"
-                        "'off'               -> pass through unchanged"
+                        "'format_only'       -> no filtering; apply use_underscores only\n"
+                        "'off'               -> pass through completely unchanged"
                     ),
                 }),
                 # ── Anatomy ───────────────────────────────────────────────────

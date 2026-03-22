@@ -9,16 +9,6 @@ Registers all four nodes with ComfyUI: GenderTagFilter, GenderNLFilter,
 DedupeTags, and SpaCyModelLoader. All nodes appear under the utils/tags category.
 """
 
-import os
-
-try:
-    import folder_paths
-    _spacy_dir = os.path.join(folder_paths.models_dir, "spacy")
-    os.makedirs(_spacy_dir, exist_ok=True)
-    folder_paths.add_model_folder_path("spacy", _spacy_dir)
-except Exception:
-    pass
-
 from .gender_tag_filter import (
     NODE_CLASS_MAPPINGS as TAG_CLASS_MAPPINGS,
     NODE_DISPLAY_NAME_MAPPINGS as TAG_DISPLAY_MAPPINGS,

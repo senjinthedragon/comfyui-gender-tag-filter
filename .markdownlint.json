@@ -32,5 +32,11 @@
   // The delimiter default value is literally ", " (comma followed by a space).
   // Wrapping it in backticks as `, ` is the correct way to display it and the
   // trailing space is intentional content, not a formatting error.
-  "MD038": false
+  "MD038": false,
+
+  // MD028: no-blanks-blockquote
+  // Adjacent [!TIP] and [!NOTE] callouts in the README are intentionally
+  // separated by a blank line so GitHub renders them as distinct callout boxes
+  // rather than merging them into one. The blank line is load-bearing.
+  "MD028": false
 }
