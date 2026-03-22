@@ -234,6 +234,7 @@ def format_tag(tag: str, tag_format: str) -> str:
 # NL / tag detection
 # ---------------------------------------------------------------------------
 
+# fmt: off
 NL_STOP_WORDS = frozenset({
     # Articles and copulas - never appear in Danbooru tags
     "a", "an", "the",
@@ -1508,6 +1509,7 @@ CLOTHING_MALE_TO_FEMALE_NL = {
     "tie":                  "choker",
     "necktie":              "choker",
 }
+# fmt: on
 
 # ---------------------------------------------------------------------------
 # Dangling adjective pattern (used in NL anatomy removal)
