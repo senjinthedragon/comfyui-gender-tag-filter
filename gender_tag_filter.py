@@ -45,15 +45,16 @@ filter_anatomy          : bool (default True)
                           for anatomy root words - huge_breasts, breast_grab
                           etc. are all caught even if not individually listed.
 
-filter_presentation     : bool (default False)
-                          Also remove gendered clothing/accessory tags.
-                          Disable for crossdressing characters.
-
-apply_replacements      : bool (default False)
+replace_anatomy         : bool (default False)
                           Replace removed anatomy tags with gender-appropriate
                           counterparts. e.g. large_breasts -> muscular_chest
+                          Has no effect when filter_anatomy is off.
 
-swap_clothing_tags      : bool (default True)
+filter_presentation     : bool (default False)
+                          Remove gendered clothing/accessory/makeup tags.
+                          Disable for crossdressing characters.
+
+swap_clothing           : bool (default True)
                           When filter_presentation is on, replace clothing tags
                           with equivalents rather than removing.
                           e.g. skirt -> trousers, bikini -> swim_trunks
@@ -120,9 +121,9 @@ def filter_gender_tags(
     text: str,
     mode: str = "off",
     filter_anatomy: bool = True,
+    replace_anatomy: bool = False,
     filter_presentation: bool = False,
-    apply_replacements: bool = False,
-    swap_clothing_tags: bool = True,
+    swap_clothing: bool = True,
     map_neopronouns: bool = True,
     handle_negations: bool = True,
     tag_format: str = "underscores",
@@ -211,7 +212,7 @@ def filter_gender_tags(
             continue
 
         # ── Anatomy replacement pass ──────────────────────────────────
-        if apply_replacements and tag_norm in replacement_map:
+        if replace_anatomy and tag_norm in replacement_map:
             replacement = replacement_map[tag_norm]
             if replacement:
                 output_tags.append(rewrap_emphasis(_format(replacement), emph_prefix, emph_suffix))
@@ -219,7 +220,7 @@ def filter_gender_tags(
 
         # ── Exact blocklist match ─────────────────────────────────────
         if tag_norm in blocklist:
-            if swap_clothing_tags and filter_presentation and tag_norm in clothing_replacement:
+            if swap_clothing and filter_presentation and tag_norm in clothing_replacement:
                 replacement = clothing_replacement[tag_norm]
                 if replacement:
                     output_tags.append(rewrap_emphasis(_format(replacement), emph_prefix, emph_suffix))
@@ -249,6 +250,7 @@ class GenderTagFilter:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                # ── Core ──────────────────────────────────────────────────────
                 "text": ("STRING", {
                     "multiline": True,
                     "default": "",
@@ -262,6 +264,7 @@ class GenderTagFilter:
                         "'off'               -> pass through unchanged"
                     ),
                 }),
+                # ── Anatomy ───────────────────────────────────────────────────
                 "filter_anatomy": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
@@ -271,23 +274,25 @@ class GenderTagFilter:
                         "caught even if not individually listed."
                     ),
                 }),
-                "filter_presentation": ("BOOLEAN", {
-                    "default": False,
-                    "tooltip": (
-                        "Also remove gendered clothing/accessory/makeup tags.\n"
-                        "Disable for crossdressing characters."
-                    ),
-                }),
-                "apply_replacements": ("BOOLEAN", {
+                "replace_anatomy": ("BOOLEAN", {
                     "default": False,
                     "tooltip": (
                         "Replace removed anatomy tags with gender-appropriate\n"
                         "counterparts instead of just deleting them.\n"
                         "e.g. large_breasts -> muscular_chest, breasts -> pecs\n"
-                        "     1girl -> 1boy, yuri -> yaoi, cameltoe -> bulge"
+                        "     1girl -> 1boy, yuri -> yaoi, cameltoe -> bulge\n"
+                        "Has no effect when filter_anatomy is off."
                     ),
                 }),
-                "swap_clothing_tags": ("BOOLEAN", {
+                # ── Clothing / Presentation ───────────────────────────────────
+                "filter_presentation": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "Remove gendered clothing, accessory, and makeup tags.\n"
+                        "Disable for crossdressing characters."
+                    ),
+                }),
+                "swap_clothing": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
                         "When filter_presentation is on, replace clothing tags\n"
@@ -297,6 +302,7 @@ class GenderTagFilter:
                         "Has no effect when filter_presentation is off."
                     ),
                 }),
+                # ── Pronouns / References ─────────────────────────────────────
                 "map_neopronouns": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
@@ -307,6 +313,7 @@ class GenderTagFilter:
                         "When off, neopronoun tags pass through unchanged."
                     ),
                 }),
+                # ── Safety ────────────────────────────────────────────────────
                 "handle_negations": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
@@ -316,6 +323,7 @@ class GenderTagFilter:
                         "Uses a 4-token proximity heuristic."
                     ),
                 }),
+                # ── Output format ─────────────────────────────────────────────
                 "tag_format": (["underscores", "spaces"], {
                     "default": "underscores",
                     "tooltip": (
@@ -334,6 +342,7 @@ class GenderTagFilter:
                         "is stripped automatically."
                     ),
                 }),
+                # ── Backend ───────────────────────────────────────────────────
                 "spacy_model": ("STRING", {
                     "default": "en_core_web_sm",
                     "tooltip": (
@@ -345,15 +354,15 @@ class GenderTagFilter:
             }
         }
 
-    def run(self, text, mode, filter_anatomy, filter_presentation,
-            apply_replacements, swap_clothing_tags, map_neopronouns,
+    def run(self, text, mode, filter_anatomy, replace_anatomy,
+            filter_presentation, swap_clothing, map_neopronouns,
             handle_negations, tag_format, delimiter, spacy_model):
         return (filter_gender_tags(
             text=text, mode=mode,
             filter_anatomy=filter_anatomy,
+            replace_anatomy=replace_anatomy,
             filter_presentation=filter_presentation,
-            apply_replacements=apply_replacements,
-            swap_clothing_tags=swap_clothing_tags,
+            swap_clothing=swap_clothing,
             map_neopronouns=map_neopronouns,
             handle_negations=handle_negations,
             tag_format=tag_format,

@@ -351,12 +351,12 @@ def filter_nl_gender(
     mode: str = "off",
     filter_anatomy: bool = True,
     replace_anatomy: bool = True,
-    handle_negations: bool = True,
-    handle_pronouns: bool = True,
-    rewrite_references: bool = True,
     filter_presentation: bool = True,
     swap_clothing: bool = True,
+    handle_pronouns: bool = True,
+    rewrite_references: bool = True,
     map_neopronouns: bool = True,
+    handle_negations: bool = True,
     spacy_model: str = "en_core_web_sm",
 ) -> tuple:
     if mode == "off" or not text.strip():
@@ -396,6 +396,7 @@ class GenderNLFilter:
     def INPUT_TYPES(cls):
         return {
             "required": {
+                # ── Core ──────────────────────────────────────────────────────
                 "text": ("STRING", {
                     "multiline": True,
                     "default": "",
@@ -413,6 +414,7 @@ class GenderNLFilter:
                         "'off'                   -> pass through unchanged"
                     ),
                 }),
+                # ── Anatomy ───────────────────────────────────────────────────
                 "filter_anatomy": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
@@ -431,32 +433,7 @@ class GenderNLFilter:
                         "Has no effect when filter_anatomy is off."
                     ),
                 }),
-                "handle_negations": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": (
-                        "Protect negated anatomy terms from removal or replacement.\n"
-                        "e.g. 'no breasts' and 'without a vagina' are left untouched.\n"
-                        "spaCy uses dependency parsing; regex uses 4-token heuristic."
-                    ),
-                }),
-                "handle_pronouns": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": (
-                        "Swap binary gendered pronouns.\n"
-                        "she/her/hers/herself  <->  he/him/his/himself\n"
-                        "spaCy correctly disambiguates 'her' between\n"
-                        "possessive (-> his) and object (-> him)."
-                    ),
-                }),
-                "rewrite_references": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": (
-                        "Swap gendered nouns and adjectives.\n"
-                        "woman/girl/lady/feminine  <->  man/boy/guy/masculine\n"
-                        "Also covers furry terms: vixen/doe/mare/tigress etc.\n"
-                        "Plus titles, family terms, and mythological figures."
-                    ),
-                }),
+                # ── Clothing / Presentation ───────────────────────────────────
                 "filter_presentation": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
@@ -475,6 +452,25 @@ class GenderNLFilter:
                         "Has no effect when filter_presentation is off."
                     ),
                 }),
+                # ── Pronouns / References ─────────────────────────────────────
+                "handle_pronouns": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": (
+                        "Swap binary gendered pronouns.\n"
+                        "she/her/hers/herself  <->  he/him/his/himself\n"
+                        "spaCy correctly disambiguates 'her' between\n"
+                        "possessive (-> his) and object (-> him)."
+                    ),
+                }),
+                "rewrite_references": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": (
+                        "Swap gendered nouns and adjectives.\n"
+                        "woman/girl/lady/feminine  <->  man/boy/guy/masculine\n"
+                        "Also covers furry terms: vixen/doe/mare/tigress etc.\n"
+                        "Plus titles, family terms, and mythological figures."
+                    ),
+                }),
                 "map_neopronouns": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
@@ -485,6 +481,16 @@ class GenderNLFilter:
                         "When off, all neopronouns pass through unchanged."
                     ),
                 }),
+                # ── Safety ────────────────────────────────────────────────────
+                "handle_negations": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": (
+                        "Protect negated anatomy terms from removal or replacement.\n"
+                        "e.g. 'no breasts' and 'without a vagina' are left untouched.\n"
+                        "spaCy uses dependency parsing; regex uses 4-token heuristic."
+                    ),
+                }),
+                # ── Backend ───────────────────────────────────────────────────
                 "spacy_model": ("STRING", {
                     "default": "en_core_web_sm",
                     "tooltip": (
@@ -498,19 +504,19 @@ class GenderNLFilter:
             }
         }
 
-    def run(self, text, mode, filter_anatomy, replace_anatomy, handle_negations,
-            handle_pronouns, rewrite_references, filter_presentation, swap_clothing,
-            map_neopronouns, spacy_model):
+    def run(self, text, mode, filter_anatomy, replace_anatomy,
+            filter_presentation, swap_clothing, handle_pronouns,
+            rewrite_references, map_neopronouns, handle_negations, spacy_model):
         filtered, backend = filter_nl_gender(
             text=text, mode=mode,
             filter_anatomy=filter_anatomy,
             replace_anatomy=replace_anatomy,
-            handle_negations=handle_negations,
-            handle_pronouns=handle_pronouns,
-            rewrite_references=rewrite_references,
             filter_presentation=filter_presentation,
             swap_clothing=swap_clothing,
+            handle_pronouns=handle_pronouns,
+            rewrite_references=rewrite_references,
             map_neopronouns=map_neopronouns,
+            handle_negations=handle_negations,
             spacy_model=spacy_model,
         )
         return (filtered, backend)
