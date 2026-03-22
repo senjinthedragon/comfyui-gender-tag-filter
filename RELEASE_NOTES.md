@@ -1,10 +1,18 @@
-# v1.2.0 - Emphasis syntax, massively expanded data, and studio-quality polish
+# v1.2.0 - SpaCy Model Loader, emphasis syntax, massively expanded data, and studio-quality polish
 
-A major upgrade to all three nodes. Every tag list has been expanded by 3-5x, emphasis syntax is now fully supported, and the codebase has been refactored for production quality.
+A major upgrade. Four nodes now instead of three. Every tag list has been expanded by 3-5x, emphasis syntax is now fully supported, spaCy is wired in as a proper typed graph connection, and the codebase has been refactored for production quality.
 
 ---
 
 ## Highlights
+
+### SpaCy Model Loader — a proper typed node for spaCy
+
+spaCy is no longer a hidden string input buried at the bottom of each filter node. A new **SpaCy Model Loader** node loads a model from `ComfyUI/models/spacy/` and outputs a typed `SPACY_NLP` object. Wire it into either filter node to enable spaCy-backed processing; leave it disconnected to use the built-in fallback.
+
+The `SPACY_NLP` custom type means the ComfyUI graph enforces the connection — only the loader can feed those inputs. The presence or absence of the loader node in your graph is itself the signal for whether spaCy is active, replacing the old `backend_used` output.
+
+The loader also detects the most common setup mistake: accidentally placing the outer pip package wrapper folder instead of the inner versioned model folder. It appears in the dropdown, and selecting it produces a clear error with the exact paths to fix.
 
 ### Emphasis syntax support across all nodes
 
@@ -50,6 +58,11 @@ All 10 NL regex pattern sets are now precompiled at module load rather than reco
 
 ## Upgrading
 
-Drop-in replacement. No workflow changes needed - all node inputs and outputs are unchanged. Just update and restart ComfyUI.
+**Existing workflows will need minor updates** due to the spaCy refactor:
 
-If you are using Dedupe Tags in your workflow, emphasis-wrapped duplicates like `(large_breasts:1.3)` and `large_breasts` are now correctly caught. Previously both would survive.
+- The `spacy_model` string input is gone from both filter nodes. Add a **SpaCy Model Loader** node and wire it in if you want spaCy-backed processing, or leave the `spacy_nlp` input disconnected to keep using the fallback.
+- The `backend_used` output is gone. The loader node in the graph is the signal that spaCy is active.
+- The `delimiter` input is gone from both filter nodes and Dedupe Tags — input is always split on commas with whitespace stripped, output always uses `, `.
+- `tag_format` on the Gender Tag Filter is now `use_underscores` (boolean). Re-connect the widget if you had it set to `spaces`.
+
+If you were using Dedupe Tags, emphasis-wrapped duplicates like `(large_breasts:1.3)` and `large_breasts` are now correctly caught. Previously both would survive.

@@ -28,11 +28,11 @@ The standard workaround of adding `ban_tags` helps but is incomplete. This node 
 
 ## Nodes
 
-This pack contains three nodes, all found under `utils/tags` in the ComfyUI node browser. The gender filter nodes are designed to work independently or in series.
+This pack contains four nodes, all found under `utils/tags` in the ComfyUI node browser. The gender filter nodes are designed to work independently or in series.
 
 ### Gender Tag Filter 🏳️‍🌈
 
-Filters gendered Danbooru and e621 style tag lists. Handles underscore and space separated tags, and is tolerant of inconsistent spacing around delimiters. Fully supports A1111/Forge emphasis syntax - `(tag:1.3)`, `((tag))`, `[tag]` are correctly parsed, filtered, and re-wrapped. LoRA, hypernetwork, and `BREAK` syntax are passed through untouched.
+Filters gendered Danbooru and e621 style tag lists. Handles underscore and space separated tags, and is tolerant of inconsistent spacing around commas. Fully supports A1111/Forge emphasis syntax - `(tag:1.3)`, `((tag))`, `[tag]` are correctly parsed, filtered, and re-wrapped. LoRA, hypernetwork, and `BREAK` syntax are passed through untouched.
 
 Backed by **145** female anatomy tags, **118** male anatomy tags, **152** female presentation tags, **112** clothing swap pairs, and **35** neopronoun entries - the most comprehensive gender vocabulary coverage of any ComfyUI tag filter.
 
@@ -46,6 +46,14 @@ Covers **128** female→male and **118** male→female word swaps, **111** NL cl
 
 **Best used for:** natural language prompts, SillyTavern character card descriptions, or as the second stage after Gender Tag Filter.
 
+### SpaCy Model Loader 🔬
+
+Loads a spaCy language model and exposes it as a `SPACY_NLP` object that you wire into the `spacy_nlp` input on either filter node. Having a visible node in the graph makes it explicit whether spaCy is active — if the loader is not connected, both filter nodes automatically fall back to their built-in heuristic or regex processing.
+
+If spaCy is not installed or the requested model is not downloaded, the loader raises a clear error with install instructions rather than silently doing nothing.
+
+**Best used for:** any workflow where you want spaCy-backed accuracy for either or both filter nodes.
+
 ### Dedupe Tags 🏷️
 
 Removes duplicate tags from a comma-separated tag string, keeping the first occurrence of each. Treats underscores and spaces as equivalent so `big_breasts` and `big breasts` are correctly identified as the same tag regardless of which form upstream nodes produce. Emphasis-aware: `(large_breasts:1.3)` and `large_breasts` are correctly identified as duplicates. Case-insensitive by default.
@@ -56,7 +64,7 @@ Removes duplicate tags from a comma-separated tag string, keeping the first occu
 
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) (latest recommended)
 - Python 3.10–3.12 (comes with ComfyUI - see note below)
-- (recommended) [spaCy](https://spacy.io/) for the NL Filter node - the tag filter node has no extra dependencies
+- (recommended) [spaCy](https://spacy.io/) for the SpaCy Model Loader node - the filter nodes work without it but fall back to regex/heuristic mode
 
 > [!WARNING]
 > **spaCy does not currently support Python 3.13 or 3.14.**
@@ -93,20 +101,40 @@ ComfyUI/custom_nodes/comfyui-gender-tag-filter/
     gender_tag_filter.py
     gender_nl_filter.py
     comfyui_dedupe_tags.py
+    comfyui_spacy_loader.py
     README.md
 ```
 
 ### 2. Install spaCy (recommended)
 
-Both nodes benefit from spaCy. The Gender NL Filter uses it for accurate negation detection and plural `they/them` disambiguation. The Gender Tag Filter uses it for more accurate detection of natural language fragments mixed into tag lists by TIPO. The nodes work without spaCy but accuracy is reduced in both cases.
+Both filter nodes benefit from spaCy. The Gender NL Filter uses it for accurate negation detection and plural `they/them` disambiguation. The Gender Tag Filter uses it for more accurate detection of natural language fragments mixed into tag lists by TIPO. The nodes work without spaCy but accuracy is reduced in both cases.
 
 ```shell
 pip install spacy
-python -m spacy download en_core_web_sm
 ```
 
+Then download a model and place it in `ComfyUI/models/spacy/`. The `models/spacy/` folder is created automatically on first launch.
+
+```shell
+python -m spacy download en_core_web_sm
+# then move the downloaded model folder into ComfyUI/models/spacy/
+```
+
+The downloaded package has a nested structure — you want the **inner versioned folder** (the one containing `meta.json`), not the outer package wrapper:
+
+```text
+venv/lib/python3.x/site-packages/
+  en_core_web_sm/              <- outer wrapper — do NOT copy this
+    __init__.py
+    en_core_web_sm-3.8.0/      <- copy THIS into models/spacy/
+      meta.json
+      ...
+```
+
+Move `en_core_web_sm-3.8.0/` into `ComfyUI/models/spacy/` (you can rename it to `en_core_web_sm` for clarity). If you accidentally place the outer folder, the SpaCy Model Loader will detect it and tell you exactly which inner folder to move and where.
+
 > [!TIP]
-> If you are running ComfyUI in a virtual environment, make sure you activate it before running the commands above. If you installed ComfyUI via the Windows portable package, use the `python_embeded` Python that ships with it:
+> If you are running ComfyUI in a virtual environment, activate it before running the commands above. If you installed ComfyUI via the Windows portable package, use the `python_embeded` Python that ships with it:
 >
 > ```shell
 > .\python_embeded\python.exe -m pip install spacy
@@ -115,7 +143,7 @@ python -m spacy download en_core_web_sm
 
 ### 3. Restart ComfyUI
 
-Both nodes will appear under `utils/tags` in the node browser after a restart.
+All four nodes will appear under `utils/tags` in the node browser after a restart.
 
 ## Usage
 
@@ -141,14 +169,14 @@ Chain both nodes in series. The tag filter cleans the tag portion first, then th
 Since both nodes take a `STRING` input and return a `STRING` output, they wire together directly with no adapter nodes needed.
 
 > [!TIP]
-> The Gender NL Filter has a second output called `backend_used` which returns either `spacy`, `regex`, or `off`. You do not need to connect it to anything, but wiring it to a **ShowText** node while you are getting set up is a handy way to confirm spaCy is running without having to dig through the console.
+> Add a **SpaCy Model Loader** node and wire its `spacy_nlp` output into the `spacy_nlp` input on either or both filter nodes to enable spaCy-backed processing. If the loader is not connected, the filter nodes fall back to their built-in heuristic/regex mode automatically. The loader is the clearest signal in your graph that spaCy is active.
 
 ## Node Reference
 
 ### Gender Tag Filter
 
-| Input                 | Type     | Default             | Description                                                                                                                                                                                                      |
-| --------------------- | -------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Input                 | Type     | Default             | Description                                                                                                                                                                                                                      |
+| --------------------- | -------- | ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `text`                | STRING   | -                   | Tag string to filter                                                                                                                                                                                             |
 | `mode`                | dropdown | `strip_female_tags` | `strip_female_tags`, `strip_male_tags`, or `off`                                                                                                                                                                 |
 | **Anatomy**           |          |                     |                                                                                                                                                                                                                  |
@@ -157,50 +185,67 @@ Since both nodes take a `STRING` input and return a `STRING` output, they wire t
 | **Clothing**          |          |                     |                                                                                                                                                                                                                  |
 | `filter_presentation` | boolean  | false               | Remove gendered clothing, accessory, and makeup tags. Disable for crossdressing characters.                                                                                                                      |
 | `swap_clothing`       | boolean  | true                | When `filter_presentation` is on, replace clothing tags with equivalents instead of removing. e.g. `skirt` → `trousers`, `bikini` → `swim_trunks`, `bra` → removed. No effect when `filter_presentation` is off. |
+| **Output format**     |          |                     |                                                                                                                                                                                                                  |
+| `use_underscores`     | boolean  | true                | Output word separator style. On → `big_breasts` (Danbooru/e621, most models). Off → `big breasts` (some fine-tuned models). Input always accepted in either style. NL fragments bypass this entirely.           |
+| **References**        |          |                     |                                                                                                                                                                                                                  |
+| `rewrite_references`  | boolean  | true                | Swap standalone gendered noun tags. `woman` → `male`, `girl` → `boy`, `vixen` → `fox`, `doe` → `buck` etc. Covers the same word set as the NL Filter for consistent behaviour across both nodes.                |
 | **Pronouns**          |          |                     |                                                                                                                                                                                                                  |
 | `map_neopronouns`     | boolean  | true                | Map neopronoun tags (`shi`, `hir`, `they`, `xe`, `ze`, `ey`, `fae` etc.) to binary equivalents image models recognise. Same set as the NL Filter for consistent standalone behaviour.                            |
 | **Safety**            |          |                     |                                                                                                                                                                                                                  |
 | `handle_negations`    | boolean  | true                | Protect tags that appear in a negated context in mixed prompts from removal. Uses a 4-token proximity heuristic.                                                                                                 |
-| **Output**            |          |                     |                                                                                                                                                                                                                  |
-| `tag_format`          | dropdown | `underscores`       | Output word separator style. `underscores` for most models, `spaces` for some fine-tuned models. Input always accepted in either style. Natural language fragments bypass this entirely.                         |
-| `delimiter`           | string   | `, `                | Tag separator for output. Input is parsed forgivingly.                                                                                                                                                           |
-| **Backend**           |          |                     |                                                                                                                                                                                                                  |
-| `spacy_model`         | string   | `en_core_web_sm`    | spaCy model for NL fragment detection. Falls back to stop-word heuristic if not installed.                                                                                                                       |
+| **Backend** _(optional)_ |      |                     |                                                                                                                                                                                                                  |
+| `spacy_nlp`           | SPACY_NLP | -                  | Connect a SpaCy Model Loader node to enable spaCy-backed NL fragment detection. Leave disconnected to use the stop-word heuristic fallback instead.                                                              |
+
+**Outputs:**
+
+| Output          | Type   | Description              |
+| --------------- | ------ | ------------------------ |
+| `filtered_tags` | STRING | The processed tag string |
 
 ### Gender NL Filter
 
-| Input                 | Type     | Default                 | Description                                                                                                                                                                                                                      |
-| --------------------- | -------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `text`                | STRING   | -                       | Prompt to filter                                                                                                                                                                                                                 |
-| `mode`                | dropdown | `strip_female_language` | `strip_female_language`, `strip_male_language`, or `off`                                                                                                                                                                         |
-| **Anatomy**           |          |                         |                                                                                                                                                                                                                                  |
-| `filter_anatomy`      | boolean  | true                    | Process anatomy words at all. Turn off to leave all anatomy language completely untouched.                                                                                                                                       |
-| `replace_anatomy`     | boolean  | true                    | Replace anatomy words with gender-appropriate counterparts rather than removing them. e.g. `Her breasts bounced` → `His pecs bounced`. Words with no clean equivalent are still removed. No effect when `filter_anatomy` is off. |
-| **Clothing**          |          |                         |                                                                                                                                                                                                                                  |
-| `filter_presentation` | boolean  | true                    | Process clothing and accessory language at all. Turn off to leave all clothing language untouched. Useful for crossdressing characters.                                                                                          |
-| `swap_clothing`       | boolean  | true                    | Replace clothing terms with equivalents rather than removing. e.g. `dress` → `suit`, `skirt` → `trousers`, `bra` → removed. No effect when `filter_presentation` is off.                                                         |
-| **Pronouns**          |          |                         |                                                                                                                                                                                                                                  |
-| `handle_pronouns`     | boolean  | true                    | Swap binary gendered pronouns. `she/her/hers/herself` ↔ `he/him/his/himself`                                                                                                                                                     |
-| `rewrite_references`  | boolean  | true                    | Swap gendered nouns and adjectives. `woman/girl/lady` ↔ `man/boy/guy` etc. Also covers furry terms: `vixen/doe/mare/tigress` etc.                                                                                                |
-| `map_neopronouns`     | boolean  | true                    | Map neopronouns to binary equivalents. Covers `shi/hir` (Chakat/furry), `they/them`, `xe/xem`, `ze/zir`, `ey/em` (Spivak), `fae/faer`. Plural `they/them` preserved by spaCy.                                                    |
-| **Safety**            |          |                         |                                                                                                                                                                                                                                  |
-| `handle_negations`    | boolean  | true                    | Protect negated anatomy terms. e.g. `no breasts`, `without a vagina` left untouched. spaCy uses dependency parsing; regex uses 4-token heuristic.                                                                                |
-| **Backend**           |          |                         |                                                                                                                                                                                                                                  |
-| `spacy_model`         | string   | `en_core_web_sm`        | spaCy model for NLP processing. Falls back to regex if not installed.                                                                                                                                                            |
+| Input                    | Type      | Default                 | Description                                                                                                                                                                                                                      |
+| ------------------------ | --------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `text`                   | STRING    | -                       | Prompt to filter                                                                                                                                                                                                                 |
+| `mode`                   | dropdown  | `strip_female_language` | `strip_female_language`, `strip_male_language`, or `off`                                                                                                                                                                         |
+| **Anatomy**              |           |                         |                                                                                                                                                                                                                                  |
+| `filter_anatomy`         | boolean   | true                    | Process anatomy words at all. Turn off to leave all anatomy language completely untouched.                                                                                                                                       |
+| `replace_anatomy`        | boolean   | true                    | Replace anatomy words with gender-appropriate counterparts rather than removing them. e.g. `Her breasts bounced` → `His pecs bounced`. Words with no clean equivalent are still removed. No effect when `filter_anatomy` is off. |
+| **Clothing**             |           |                         |                                                                                                                                                                                                                                  |
+| `filter_presentation`    | boolean   | true                    | Process clothing and accessory language at all. Turn off to leave all clothing language untouched. Useful for crossdressing characters.                                                                                          |
+| `swap_clothing`          | boolean   | true                    | Replace clothing terms with equivalents rather than removing. e.g. `dress` → `suit`, `skirt` → `trousers`, `bra` → removed. No effect when `filter_presentation` is off.                                                         |
+| **Pronouns**             |           |                         |                                                                                                                                                                                                                                  |
+| `handle_pronouns`        | boolean   | true                    | Swap binary gendered pronouns. `she/her/hers/herself` ↔ `he/him/his/himself`                                                                                                                                                     |
+| `rewrite_references`     | boolean   | true                    | Swap gendered nouns and adjectives. `woman/girl/lady` ↔ `man/boy/guy` etc. Also covers furry terms: `vixen/doe/mare/tigress` etc.                                                                                                |
+| `map_neopronouns`        | boolean   | true                    | Map neopronouns to binary equivalents. Covers `shi/hir` (Chakat/furry), `they/them`, `xe/xem`, `ze/zir`, `ey/em` (Spivak), `fae/faer`. Plural `they/them` preserved by spaCy.                                                    |
+| **Safety**               |           |                         |                                                                                                                                                                                                                                  |
+| `handle_negations`       | boolean   | true                    | Protect negated anatomy terms. e.g. `no breasts`, `without a vagina` left untouched. spaCy uses dependency parsing; regex uses 4-token heuristic.                                                                                |
+| **Backend** _(optional)_ |           |                         |                                                                                                                                                                                                                                  |
+| `spacy_nlp`              | SPACY_NLP | -                       | Connect a SpaCy Model Loader node to enable spaCy-backed NLP processing. Leave disconnected to use the regex fallback instead.                                                                                                   |
 
-**Outputs (NL Filter only):**
+**Outputs:**
 
-| Output          | Type   | Description                                       |
-| --------------- | ------ | ------------------------------------------------- |
-| `filtered_text` | STRING | The processed prompt                              |
-| `backend_used`  | STRING | `spacy`, `regex`, or `off` - useful for debugging |
+| Output          | Type   | Description           |
+| --------------- | ------ | --------------------- |
+| `filtered_text` | STRING | The processed prompt  |
+
+### SpaCy Model Loader
+
+| Input   | Type     | Default | Description                                                                                                                                                                                |
+| ------- | -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `model` | dropdown | -       | spaCy model to load. Populated automatically from `ComfyUI/models/spacy/`. Any subfolder containing a `meta.json` appears here. See [spaCy model sizes](#spacy-model-sizes) for options. |
+
+**Outputs:**
+
+| Output      | Type      | Description                                                                          |
+| ----------- | --------- | ------------------------------------------------------------------------------------ |
+| `spacy_nlp` | SPACY_NLP | The loaded spaCy model. Wire this into the `spacy_nlp` input on either filter node. |
 
 ### Dedupe Tags
 
 | Input            | Type    | Default | Description                                                                                                                                            |
 | ---------------- | ------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `text`           | STRING  | -       | Comma-separated tag string to dedupe                                                                                                                   |
-| `delimiter`      | string  | `, `    | Separator used in the output                                                                                                                           |
 | `case_sensitive` | boolean | false   | When off, `Big_Breasts` and `big breasts` are treated as the same tag. When on, only exact matches (after underscore/space normalisation) are deduped. |
 
 Emphasis-wrapped duplicates are detected: `(large_breasts:1.3)` and `large_breasts` are treated as the same tag (first occurrence wins). LoRA syntax and `BREAK` keywords always pass through.
@@ -225,14 +270,20 @@ If your character is intentionally wearing clothing associated with a different 
 **Node doesn't appear in ComfyUI:**\
 Make sure the folder is directly inside `ComfyUI/custom_nodes/` and contains `__init__.py`. Restart ComfyUI fully after installing.
 
-**`backend_used` shows `regex` but I installed spaCy:**\
-Make sure you installed spaCy into the same Python environment that ComfyUI is using. If you are on the Windows portable package, use `python_embeded\python.exe -m pip install spacy` rather than a system Python. Check the ComfyUI console for the warning message - it will tell you exactly what went wrong.
+**SpaCy Model Loader shows "(no models found)":**\
+No valid model folder was found in `ComfyUI/models/spacy/`. Make sure you placed the inner versioned folder (the one containing `meta.json`) there, not the outer pip package wrapper. See the installation instructions above for the exact folder to copy.
+
+**SpaCy Model Loader says "outer pip package folder":**\
+You placed the outer wrapper folder into `models/spacy/` instead of the inner model. The error message shows the exact `From:` and `To:` paths — just move the folder it points to and restart ComfyUI.
+
+**SpaCy Model Loader raises an error about spaCy not being installed:**\
+Confirm spaCy is installed in the same Python environment as ComfyUI. If you are on the Windows portable package, use `python_embeded\python.exe -m pip install spacy` rather than a system Python.
 
 **Compound tags like `furry with non-furry` or `tongue out` are being treated as natural language:**\
 Update to v1.0.1 - this was a bug in the NL fragment detector's stop word list. Words like `with`, `out`, `from`, `at` were incorrectly flagged as natural language markers, causing common Danbooru compound tags to bypass underscore formatting.
 
 **Tags with spaces are not being matched:**\
-Both nodes normalise tags internally - `large breasts` and `large_breasts` are treated as the same tag regardless of your `tag_format` setting. If a tag is still slipping through, check that it is in the blocklist in `gender_shared.py`. The lists are plain Python sets and are easy to extend.
+Both nodes normalise tags internally - `large breasts` and `large_breasts` are treated as the same tag regardless of your `use_underscores` setting. If a tag is still slipping through, check that it is in the blocklist in `gender_shared.py`. The lists are plain Python sets and are easy to extend.
 
 **Negated anatomy is being removed anyway:**\
 You are likely running on the regex fallback rather than spaCy. The regex heuristic scans 4 tokens back for a negation word, which covers most cases but not all sentence structures. Install spaCy for reliable negation detection.

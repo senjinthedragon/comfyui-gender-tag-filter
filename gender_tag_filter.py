@@ -71,22 +71,20 @@ handle_negations        : bool (default True)
                           e.g. a tag appearing after 'no' or 'without' in a
                           mixed prompt is left untouched.
 
-tag_format              : "underscores" | "spaces"
+use_underscores         : bool (default True)
                           Output word separator style.
+                          True -> underscores, False -> spaces.
                           NL fragments bypass this and keep original spacing.
 
-delimiter               : str (default ", ")
-                          Tag separator. Input is parsed forgivingly.
-
-spacy_model             : str (default "en_core_web_sm")
-                          Used for NL fragment detection.
-                          Falls back to stop-word heuristic if not installed.
+spacy_nlp               : SPACY_NLP (optional)
+                          Connect a SpaCy Model Loader node to enable spaCy-backed
+                          NL fragment detection. Leave disconnected to use the
+                          stop-word heuristic fallback instead.
 """
 
 import re
 
 from .gender_shared import (
-    load_spacy,
     normalise_tag,
     format_tag,
     is_natural_language,
@@ -106,6 +104,8 @@ from .gender_shared import (
     MALE_TO_FEMALE_REPLACEMENTS,
     FEMALE_TO_MALE_CLOTHING,
     MALE_TO_FEMALE_CLOTHING,
+    FEMALE_TO_MALE_WORDS,
+    MALE_TO_FEMALE_WORDS,
 )
 
 def _tag_contains_root(tag_norm: str, root_set: frozenset) -> bool:
@@ -124,38 +124,38 @@ def filter_gender_tags(
     replace_anatomy: bool = False,
     filter_presentation: bool = False,
     swap_clothing: bool = True,
+    use_underscores: bool = True,
+    rewrite_references: bool = True,
     map_neopronouns: bool = True,
     handle_negations: bool = True,
-    tag_format: str = "underscores",
-    delimiter: str = ", ",
-    spacy_model: str = "en_core_web_sm",
+    nlp=None,
 ) -> str:
     if mode == "off" or not text.strip():
         return text
 
-    split_char = delimiter.strip() or delimiter
-
-    # Split on newlines first (hard boundary between tag section and NL prose),
-    # then on the delimiter within each line.
+    # Split on commas, strip surrounding whitespace from each tag.
+    # Handles any spacing variant: "a, b", "a,b", "a ,  b" etc.
     raw_chunks = re.split(r'\n+', text)
     raw_tags = []
     for chunk in raw_chunks:
-        raw_tags.extend(t.strip() for t in chunk.split(split_char) if t.strip())
+        raw_tags.extend(t.strip() for t in chunk.split(",") if t.strip())
 
     if mode == "strip_female_tags":
-        anatomy_blocklist    = FEMALE_ANATOMY
+        anatomy_blocklist      = FEMALE_ANATOMY
         presentation_blocklist = FEMALE_PRESENTATION
-        replacement_map      = FEMALE_TO_MALE_REPLACEMENTS
-        clothing_replacement = FEMALE_TO_MALE_CLOTHING
-        anatomy_roots        = FEMALE_ANATOMY_ROOTS
-        neo_index            = 0   # male target
+        replacement_map        = FEMALE_TO_MALE_REPLACEMENTS
+        clothing_replacement   = FEMALE_TO_MALE_CLOTHING
+        anatomy_roots          = FEMALE_ANATOMY_ROOTS
+        word_map               = FEMALE_TO_MALE_WORDS
+        neo_index              = 0   # male target
     else:
-        anatomy_blocklist    = MALE_ANATOMY
+        anatomy_blocklist      = MALE_ANATOMY
         presentation_blocklist = MALE_PRESENTATION
-        replacement_map      = MALE_TO_FEMALE_REPLACEMENTS
-        clothing_replacement = MALE_TO_FEMALE_CLOTHING
-        anatomy_roots        = MALE_ANATOMY_ROOTS
-        neo_index            = 1   # female target
+        replacement_map        = MALE_TO_FEMALE_REPLACEMENTS
+        clothing_replacement   = MALE_TO_FEMALE_CLOTHING
+        anatomy_roots          = MALE_ANATOMY_ROOTS
+        word_map               = MALE_TO_FEMALE_WORDS
+        neo_index              = 1   # female target
 
     blocklist = set()
     if filter_anatomy:
@@ -166,11 +166,8 @@ def filter_gender_tags(
     # Build neopronoun swap map for this mode
     neo_swap = {k: v[neo_index] for k, v in NEOPRONOUN_MAP.items()}
 
-    # Load spaCy for NL detection (silent fallback to heuristic on failure)
-    nlp = load_spacy(spacy_model)
-
     def _format(tag: str) -> str:
-        return format_tag(tag, tag_format)
+        return format_tag(tag, "underscores" if use_underscores else "spaces")
 
     output_tags = []
     for tag in raw_tags:
@@ -218,6 +215,14 @@ def filter_gender_tags(
                 output_tags.append(rewrap_emphasis(_format(replacement), emph_prefix, emph_suffix))
             continue
 
+        # ── Gendered word/reference replacement ───────────────────────
+        # Catches standalone gendered noun tags: woman, girl, vixen, doe...
+        if rewrite_references and tag_norm in word_map:
+            replacement = word_map[tag_norm]
+            if replacement:
+                output_tags.append(rewrap_emphasis(_format(replacement), emph_prefix, emph_suffix))
+            continue
+
         # ── Exact blocklist match ─────────────────────────────────────
         if tag_norm in blocklist:
             if swap_clothing and filter_presentation and tag_norm in clothing_replacement:
@@ -233,7 +238,7 @@ def filter_gender_tags(
         # ── Tag survived ──────────────────────────────────────────────
         output_tags.append(rewrap_emphasis(_format(inner_tag), emph_prefix, emph_suffix))
 
-    return delimiter.join(output_tags)
+    return ", ".join(output_tags)
 
 
 # ---------------------------------------------------------------------------
@@ -249,6 +254,15 @@ class GenderTagFilter:
     @classmethod
     def INPUT_TYPES(cls):
         return {
+            "optional": {
+                "spacy_nlp": ("SPACY_NLP", {
+                    "tooltip": (
+                        "Connect a SpaCy Model Loader node to enable spaCy-backed\n"
+                        "NL fragment detection. Leave disconnected to use the\n"
+                        "stop-word heuristic fallback instead."
+                    ),
+                }),
+            },
             "required": {
                 # ── Core ──────────────────────────────────────────────────────
                 "text": ("STRING", {
@@ -302,7 +316,28 @@ class GenderTagFilter:
                         "Has no effect when filter_presentation is off."
                     ),
                 }),
-                # ── Pronouns / References ─────────────────────────────────────
+                # ── Output format ─────────────────────────────────────────────
+                "use_underscores": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": (
+                        "Output word separator style.\n"
+                        "On  -> big_breasts  (Danbooru/e621, most SDXL models)\n"
+                        "Off -> big breasts  (some fine-tuned models)\n"
+                        "Input tags are always accepted in either style.\n"
+                        "Natural language fragments bypass this setting entirely."
+                    ),
+                }),
+                # ── References ────────────────────────────────────────────────
+                "rewrite_references": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": (
+                        "Swap standalone gendered noun tags.\n"
+                        "woman -> man, girl -> boy, vixen -> fox, doe -> buck etc.\n"
+                        "Covers the same word set as the NL Filter's rewrite_references\n"
+                        "for consistent behaviour across both nodes."
+                    ),
+                }),
+                # ── Pronouns ──────────────────────────────────────────────────
                 "map_neopronouns": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
@@ -323,52 +358,25 @@ class GenderTagFilter:
                         "Uses a 4-token proximity heuristic."
                     ),
                 }),
-                # ── Output format ─────────────────────────────────────────────
-                "tag_format": (["underscores", "spaces"], {
-                    "default": "underscores",
-                    "tooltip": (
-                        "Word separator style expected by your model.\n"
-                        "'underscores' -> big_breasts  (Danbooru/e621, most SDXL models)\n"
-                        "'spaces'      -> big breasts  (some fine-tuned models)\n"
-                        "Input tags are always accepted in either style.\n"
-                        "Natural language fragments bypass this setting entirely."
-                    ),
-                }),
-                "delimiter": ("STRING", {
-                    "default": ", ",
-                    "tooltip": (
-                        "Separator used between output tags.\n"
-                        "Input is parsed forgivingly - whitespace around tags\n"
-                        "is stripped automatically."
-                    ),
-                }),
-                # ── Backend ───────────────────────────────────────────────────
-                "spacy_model": ("STRING", {
-                    "default": "en_core_web_sm",
-                    "tooltip": (
-                        "spaCy model for NL fragment detection.\n"
-                        "Falls back to stop-word heuristic if spaCy is not installed.\n"
-                        "en_core_web_sm (~12MB) is sufficient for this purpose."
-                    ),
-                }),
             }
         }
 
     def run(self, text, mode, filter_anatomy, replace_anatomy,
-            filter_presentation, swap_clothing, map_neopronouns,
-            handle_negations, tag_format, delimiter, spacy_model):
-        return (filter_gender_tags(
+            filter_presentation, swap_clothing, use_underscores, rewrite_references,
+            map_neopronouns, handle_negations, spacy_nlp=None):
+        filtered = filter_gender_tags(
             text=text, mode=mode,
             filter_anatomy=filter_anatomy,
             replace_anatomy=replace_anatomy,
             filter_presentation=filter_presentation,
             swap_clothing=swap_clothing,
+            use_underscores=use_underscores,
+            rewrite_references=rewrite_references,
             map_neopronouns=map_neopronouns,
             handle_negations=handle_negations,
-            tag_format=tag_format,
-            delimiter=delimiter,
-            spacy_model=spacy_model,
-        ),)
+            nlp=spacy_nlp,
+        )
+        return (filtered,)
 
 
 NODE_CLASS_MAPPINGS      = {"GenderTagFilter": GenderTagFilter}

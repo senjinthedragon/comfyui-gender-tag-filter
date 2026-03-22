@@ -82,8 +82,10 @@ map_neopronouns         : bool (default True)
                           ey/em, fae/faer, ve/ver, per. Plural they/them
                           preserved by spaCy (regex fallback is approximate).
 
-spacy_model             : str (default "en_core_web_sm")
-                          Falls back to regex if spaCy is not installed.
+spacy_nlp               : SPACY_NLP (optional)
+                          Connect a SpaCy Model Loader node to enable spaCy-backed
+                          NLP processing. Leave disconnected to use the regex
+                          fallback instead.
 """
 
 import re
@@ -118,7 +120,6 @@ from .gender_shared import (
     has_negation_ancestor,
     is_negated_regex,
     is_plural_they,
-    load_spacy,
     preserve_case,
 )
 
@@ -357,12 +358,10 @@ def filter_nl_gender(
     rewrite_references: bool = True,
     map_neopronouns: bool = True,
     handle_negations: bool = True,
-    spacy_model: str = "en_core_web_sm",
-) -> tuple:
+    nlp=None,
+) -> str:
     if mode == "off" or not text.strip():
-        return text, "off"
-
-    nlp = load_spacy(spacy_model)
+        return text
 
     kwargs = dict(
         mode=mode,
@@ -377,9 +376,9 @@ def filter_nl_gender(
     )
 
     if nlp is not None:
-        return _process_spacy(text=text, nlp=nlp, **kwargs), "spacy"
+        return _process_spacy(text=text, nlp=nlp, **kwargs)
     else:
-        return _process_regex(text=text, **kwargs), "regex"
+        return _process_regex(text=text, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -389,12 +388,22 @@ def filter_nl_gender(
 class GenderNLFilter:
     CATEGORY = "utils/tags"
     FUNCTION = "run"
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("filtered_text", "backend_used")
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("filtered_text",)
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
+            "optional": {
+                "spacy_nlp": ("SPACY_NLP", {
+                    "tooltip": (
+                        "Connect a SpaCy Model Loader node to enable spaCy-backed\n"
+                        "NLP processing with accurate negation detection, pronoun\n"
+                        "disambiguation, and multi-word span matching.\n"
+                        "Leave disconnected to use the regex fallback instead."
+                    ),
+                }),
+            },
             "required": {
                 # ── Core ──────────────────────────────────────────────────────
                 "text": ("STRING", {
@@ -472,6 +481,7 @@ class GenderNLFilter:
                     ),
                 }),
                 "map_neopronouns": ("BOOLEAN", {
+
                     "default": True,
                     "tooltip": (
                         "Map neopronouns to binary equivalents image models recognise.\n"
@@ -490,24 +500,13 @@ class GenderNLFilter:
                         "spaCy uses dependency parsing; regex uses 4-token heuristic."
                     ),
                 }),
-                # ── Backend ───────────────────────────────────────────────────
-                "spacy_model": ("STRING", {
-                    "default": "en_core_web_sm",
-                    "tooltip": (
-                        "spaCy model for NLP processing.\n"
-                        "en_core_web_sm  ~12MB  - good for most cases (recommended)\n"
-                        "en_core_web_md  ~43MB  - better word vectors\n"
-                        "en_core_web_lg  ~560MB - best accuracy\n"
-                        "Falls back to regex automatically if spaCy is not installed."
-                    ),
-                }),
             }
         }
 
     def run(self, text, mode, filter_anatomy, replace_anatomy,
             filter_presentation, swap_clothing, handle_pronouns,
-            rewrite_references, map_neopronouns, handle_negations, spacy_model):
-        filtered, backend = filter_nl_gender(
+            rewrite_references, map_neopronouns, handle_negations, spacy_nlp=None):
+        filtered = filter_nl_gender(
             text=text, mode=mode,
             filter_anatomy=filter_anatomy,
             replace_anatomy=replace_anatomy,
@@ -517,9 +516,9 @@ class GenderNLFilter:
             rewrite_references=rewrite_references,
             map_neopronouns=map_neopronouns,
             handle_negations=handle_negations,
-            spacy_model=spacy_model,
+            nlp=spacy_nlp,
         )
-        return (filtered, backend)
+        return (filtered,)
 
 
 NODE_CLASS_MAPPINGS        = {"GenderNLFilter": GenderNLFilter}

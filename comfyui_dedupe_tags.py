@@ -37,7 +37,6 @@ class DedupeTags:
                 "text": ("STRING", {"forceInput": True}),
             },
             "optional": {
-                "delimiter": ("STRING", {"default": ", "}),
                 "case_sensitive": ("BOOLEAN", {"default": False}),
             },
         }
@@ -47,7 +46,7 @@ class DedupeTags:
     FUNCTION = "dedupe"
     CATEGORY = "utils/tags"
 
-    def dedupe(self, text, delimiter=", ", case_sensitive=False):
+    def dedupe(self, text, case_sensitive=False):
         # Split on comma, strip whitespace, drop empty strings
         tags = [t.strip() for t in text.split(",")]
         tags = [t for t in tags if t]
@@ -74,7 +73,7 @@ class DedupeTags:
                 seen.add(key)
                 result.append(tag)  # Always append original form
 
-        return (delimiter.join(result),)
+        return (", ".join(result),)
 
 
 NODE_CLASS_MAPPINGS = {

@@ -15,6 +15,13 @@
   // a single section.
   "MD024": { "siblings_only": true },
 
+  // MD060: table-column-style
+  // Requires every cell to be padded to the width of the widest entry in its
+  // column. On description-heavy reference tables this would make the source
+  // hundreds of characters wide and completely unreadable. Markdown renderers
+  // (including GitHub) do not require aligned pipes to render tables correctly.
+  "MD060": false,
+
   // MD033: no-inline-html
   // The centered screenshot at the top of the README uses <p align="center">
   // and <img> because standard Markdown has no image alignment syntax. This

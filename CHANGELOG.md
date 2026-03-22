@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### SpaCy Model Loader node (`SpaCyModelLoader`)
+
+- New `SpaCyModelLoader` node that loads a spaCy language model from `ComfyUI/models/spacy/` and outputs it as a typed `SPACY_NLP` object
+- Model dropdown is populated automatically by scanning the `models/spacy/` folder for valid model directories — any subfolder containing `meta.json` appears as an option
+- `SPACY_NLP` is a custom ComfyUI type: only `SpaCyModelLoader` outputs can wire into the `spacy_nlp` inputs on the filter nodes, enforced by the ComfyUI type system
+- `models/spacy/` is registered with `folder_paths` and created automatically on first launch
+- Detects the common mistake of placing the outer pip package wrapper folder (e.g. `en_core_web_sm/`) instead of the inner versioned model folder (`en_core_web_sm-3.8.0/`): the wrapper folder appears in the dropdown, and selecting it produces a clear error showing the exact `From:` and `To:` paths to fix the placement
+- Raises a specific error if spaCy is not installed, with the install command
+- Raises a specific error if `models/spacy/` is empty, with instructions for downloading and placing a model
+- Models are loaded by path rather than pip package name — fully independent of any other nodes that use spaCy
+
+#### Gender Tag Filter (`GenderTagFilter`) and Gender NL Filter (`GenderNLFilter`)
+
+- `spacy_nlp` optional input (`SPACY_NLP` type): wire a `SpaCyModelLoader` node here to enable spaCy-backed processing; leave disconnected to use the built-in heuristic/regex fallback
+- `rewrite_references` toggle added to Gender Tag Filter: swaps standalone gendered noun tags (`woman` → `male`, `girl` → `boy`, `vixen` → `fox`, `doe` → `buck` etc.) — covers the same word set as the NL Filter for consistent behaviour across both nodes
+
+### Removed
+
+- `spacy_model` string input removed from both filter nodes (replaced by the `spacy_nlp` typed connection from `SpaCyModelLoader`)
+- `backend_used` second output removed from both filter nodes (the presence or absence of a wired `SpaCyModelLoader` node is visible directly in the graph)
+- `delimiter` input removed from both filter nodes and `DedupeTags`: input is always split on commas with whitespace stripped, output always uses `, `
+
+### Changed
+
+- `tag_format` dropdown (Gender Tag Filter) replaced by `use_underscores` boolean toggle so both filter nodes use only boolean widgets from input 3 onward, keeping node heights visually aligned
+- Input order aligned across both filter nodes: `text`, `mode`, `filter_anatomy`, `replace_anatomy`, `filter_presentation`, `swap_clothing`, node-specific input, `rewrite_references`, `map_neopronouns`, `handle_negations`
+- All data sets converted from `set` to `frozenset` for immutability and slight hash-lookup performance improvement
+- `gender_shared.py` expanded from ~760 lines to ~1600 lines - all data maps, utilities, and precompiled patterns centralised in a single shared module
+
 #### Emphasis syntax support (all nodes)
 
 - Full A1111/Forge emphasis syntax support: `(tag:1.3)`, `((tag))`, `[tag]` are now correctly parsed, filtered, and re-wrapped with their original emphasis intact across all three nodes
@@ -57,11 +86,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Date for last release in the CHANGELOG.md is now correct
 - Removed unused `import logging` and `log = logging.getLogger(__name__)` from `gender_tag_filter.py` and `gender_nl_filter.py`
 - Removed unused `NEOPRONOUN_TAG_FORMS` import from `gender_tag_filter.py`
-
-### Changed
-
-- All data sets converted from `set` to `frozenset` for immutability and slight hash-lookup performance improvement
-- `gender_shared.py` expanded from ~760 lines to ~1600 lines - all data maps, utilities, and precompiled patterns centralised in a single shared module
 
 ## [1.1.0] - 2026-03-16
 
