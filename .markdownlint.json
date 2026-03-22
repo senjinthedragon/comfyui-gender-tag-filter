@@ -1,0 +1,29 @@
+{
+  "default": true,
+
+  // MD013: line-length
+  // Tables and inline code in documentation files legitimately exceed 80 chars.
+  // Enforcing hard wrapping at 80 columns would make tables and node reference
+  // sections unreadable. Disabled for the whole repo.
+  "MD013": false,
+
+  // MD024: no-duplicate-heading
+  // Keep a Changelog format intentionally repeats section headings (Added,
+  // Changed, Fixed, etc.) under each version block. siblings_only:true only
+  // flags duplicates that share the same direct parent heading, which lets the
+  // CHANGELOG pattern through while still catching accidental repeats inside
+  // a single section.
+  "MD024": { "siblings_only": true },
+
+  // MD033: no-inline-html
+  // The centered screenshot at the top of the README uses <p align="center">
+  // and <img> because standard Markdown has no image alignment syntax. This
+  // is intentional and well-supported by GitHub's renderer.
+  "MD033": false,
+
+  // MD038: no-space-in-code
+  // The delimiter default value is literally ", " (comma followed by a space).
+  // Wrapping it in backticks as `, ` is the correct way to display it and the
+  // trailing space is intentional content, not a formatting error.
+  "MD038": false
+}

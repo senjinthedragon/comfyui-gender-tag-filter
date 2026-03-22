@@ -28,23 +28,27 @@ The standard workaround of adding `ban_tags` helps but is incomplete. This node 
 
 ## Nodes
 
-This pack contains two nodes, both found under `utils/tags` in the ComfyUI node browser. They are designed to work independently or in series.
+This pack contains three nodes, all found under `utils/tags` in the ComfyUI node browser. The gender filter nodes are designed to work independently or in series.
 
 ### Gender Tag Filter 🏳️‍🌈
 
-Filters gendered Danbooru and e621 style tag lists. Handles underscore and space separated tags, and is tolerant of inconsistent spacing around delimiters.
+Filters gendered Danbooru and e621 style tag lists. Handles underscore and space separated tags, and is tolerant of inconsistent spacing around delimiters. Fully supports A1111/Forge emphasis syntax - `(tag:1.3)`, `((tag))`, `[tag]` are correctly parsed, filtered, and re-wrapped. LoRA, hypernetwork, and `BREAK` syntax are passed through untouched.
+
+Backed by **145** female anatomy tags, **118** male anatomy tags, **152** female presentation tags, **112** clothing swap pairs, and **35** neopronoun entries - the most comprehensive gender vocabulary coverage of any ComfyUI tag filter.
 
 **Best used for:** pure tag prompts, or as the first stage in a mixed tag+NL pipeline.
 
 ### Gender NL Filter 🏳️‍🌈
 
-Filters and rewrites gendered vocabulary in natural language prompts or mixed tag+NL prompts. Uses [spaCy](https://spacy.io/) for accurate negation detection and pronoun disambiguation, with automatic fallback to regex if spaCy is not installed.
+Filters and rewrites gendered vocabulary in natural language prompts or mixed tag+NL prompts. Uses [spaCy](https://spacy.io/) for accurate negation detection, `her` pronoun disambiguation (possessive vs object), and plural `they/them` preservation, with automatic fallback to regex if spaCy is not installed.
+
+Covers **128** female→male and **118** male→female word swaps, **111** NL clothing patterns, and cross-gender anatomy pairings (`pussy` ↔ `cock`, `vagina` ↔ `penis`, `pecs` ↔ `breasts`).
 
 **Best used for:** natural language prompts, SillyTavern character card descriptions, or as the second stage after Gender Tag Filter.
 
 ### Dedupe Tags 🏷️
 
-Removes duplicate tags from a comma-separated tag string, keeping the first occurrence of each. Treats underscores and spaces as equivalent so `big_breasts` and `big breasts` are correctly identified as the same tag regardless of which form upstream nodes produce. Case-insensitive by default.
+Removes duplicate tags from a comma-separated tag string, keeping the first occurrence of each. Treats underscores and spaces as equivalent so `big_breasts` and `big breasts` are correctly identified as the same tag regardless of which form upstream nodes produce. Emphasis-aware: `(large_breasts:1.3)` and `large_breasts` are correctly identified as duplicates. Case-insensitive by default.
 
 **Best used for:** cleaning up merged tag strings before they reach the CLIP encoder, particularly after concatenating a static quality tag prefix with TIPO output.
 
@@ -82,7 +86,7 @@ git clone https://github.com/senjinthedragon/comfyui-gender-tag-filter
 
 Or download the ZIP and extract it so the folder structure looks like this:
 
-```
+```text
 ComfyUI/custom_nodes/comfyui-gender-tag-filter/
     __init__.py
     gender_shared.py
@@ -119,7 +123,7 @@ Both nodes will appear under `utils/tags` in the node browser after a restart.
 
 Drop **Gender Tag Filter** between your prompt expander (e.g. TIPO, DedupeTags) and your CLIP encoder:
 
-```
+```text
 TIPO → DanbooruTagSnakeCaseFixer → IllustriousPromptSorter
      → StringConcatenate → [Dedupe Tags]
      → [Gender Tag Filter]
@@ -130,7 +134,7 @@ TIPO → DanbooruTagSnakeCaseFixer → IllustriousPromptSorter
 
 Chain both nodes in series. The tag filter cleans the tag portion first, then the NL filter handles any natural language fragments:
 
-```
+```text
 ... → DedupeTags → [Gender Tag Filter] → [Gender NL Filter] → CLIPTextEncodeSDXL
 ```
 
@@ -187,6 +191,8 @@ Since both nodes take a `STRING` input and return a `STRING` output, they wire t
 | `text`           | STRING  | -       | Comma-separated tag string to dedupe                                                                                                                   |
 | `delimiter`      | string  | `, `    | Separator used in the output                                                                                                                           |
 | `case_sensitive` | boolean | false   | When off, `Big_Breasts` and `big breasts` are treated as the same tag. When on, only exact matches (after underscore/space normalisation) are deduped. |
+
+Emphasis-wrapped duplicates are detected: `(large_breasts:1.3)` and `large_breasts` are treated as the same tag (first occurrence wins). LoRA syntax and `BREAK` keywords always pass through.
 
 ## Crossdressing characters
 

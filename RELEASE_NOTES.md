@@ -1,21 +1,55 @@
-# 🏷️ v1.1.0 - Dedupe Tags joins the pack
+# v1.2.0 - Emphasis syntax, massively expanded data, and studio-quality polish
 
-One new node, and the full pipeline now ships as a single install.
-
----
-
-## What's new
-
-**Dedupe Tags is now part of the node pack.**
-
-It's the node you want between your tag concatenation step and the Gender Tag Filter. It removes duplicate tags from a comma-separated string, keeping the first occurrence of each.
-
-The smart part: it treats underscores and spaces as equivalent, so `big_breasts` and `big breasts` are correctly identified as the same tag regardless of which form upstream nodes produce. TIPO and other prompt expanders regularly output both forms when you concatenate a static quality tag prefix with their output - without this, both variants survive and reach the CLIP encoder.
-
-The node sits in the `utils/tags` category alongside the gender filter nodes, and like them it strips empty tags and double-comma artefacts automatically.
+A major upgrade to all three nodes. Every tag list has been expanded by 3-5x, emphasis syntax is now fully supported, and the codebase has been refactored for production quality.
 
 ---
 
-## Installation
+## Highlights
 
-No workflow changes needed if you were already using a dedupe node. The class name is `DedupeTags` and all inputs are identical to what you'd expect. Just update the pack and restart ComfyUI.
+### Emphasis syntax support across all nodes
+
+A1111/Forge emphasis syntax - `(tag:1.3)`, `((tag))`, `[tag]` - is now correctly parsed, filtered, and re-wrapped with the original emphasis intact. Previously, emphasis-wrapped tags could bypass filtering entirely.
+
+LoRA (`<lora:name:weight>`), hypernetwork, LyCORIS, and embedding syntax are detected and passed through untouched. The `BREAK` keyword is also preserved.
+
+This applies to all three nodes: Gender Tag Filter, Gender NL Filter, and Dedupe Tags.
+
+### 3-5x larger tag coverage
+
+The tag and word lists that power the filtering have been massively expanded:
+
+| Data set | v1.1.0 | v1.2.0 |
+| --- | --- | --- |
+| Female anatomy tags | ~40 | **145** |
+| Male anatomy tags | ~25 | **118** |
+| Female presentation tags | ~50 | **152** |
+| Male presentation tags | ~15 | **43** |
+| F→M clothing swaps | ~30 | **112** |
+| M→F clothing swaps | ~15 | **56** |
+| F→M NL word swaps | ~40 | **128** |
+| M→F NL word swaps | ~35 | **118** |
+| NL clothing patterns | ~20 | **111** |
+| Anatomy root words | ~15 | **69** |
+| Neopronoun entries | ~10 | **35** |
+
+New coverage includes exposure/situational tags (`pantyshot`, `upskirt`, `zettai_ryouiki`, `no_bra`, `no_panties`), furry-specific gendered terms (`vixen`, `doe`, `mare`, `tigress`, `stallion`, `buck`), cross-gender anatomy NL pairings (`pussy` ↔ `cock`, `vagina` ↔ `penis`), and comprehensive makeup, lingerie, swimwear, and formalwear mappings.
+
+### Smarter pronoun handling
+
+The NL Filter now disambiguates `her` between possessive (`her coat` → `his coat`) and object (`gave her` → `gave him`) using spaCy dependency and morphology analysis. Previously both were mapped to the same replacement.
+
+### Negation detection fix
+
+Phrases like `the character has no breasts` were not being detected as negated because spaCy labels `no` before a noun as a determiner (`det`), not a negation (`neg`). The negation detector now also checks for negation determiners and walks up to the head verb, correctly preserving these phrases.
+
+### Performance
+
+All 10 NL regex pattern sets are now precompiled at module load rather than recompiled on every call. All constant data sets use `frozenset` for immutability and faster lookups.
+
+---
+
+## Upgrading
+
+Drop-in replacement. No workflow changes needed - all node inputs and outputs are unchanged. Just update and restart ComfyUI.
+
+If you are using Dedupe Tags in your workflow, emphasis-wrapped duplicates like `(large_breasts:1.3)` and `large_breasts` are now correctly caught. Previously both would survive.

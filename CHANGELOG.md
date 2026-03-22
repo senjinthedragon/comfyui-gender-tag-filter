@@ -5,11 +5,63 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.2.0] - TBD
+## [1.2.0] - 2026-03-22
+
+### Added
+
+#### Emphasis syntax support (all nodes)
+
+- Full A1111/Forge emphasis syntax support: `(tag:1.3)`, `((tag))`, `[tag]` are now correctly parsed, filtered, and re-wrapped with their original emphasis intact across all three nodes
+- LoRA (`<lora:name:weight>`), hypernetwork, LyCORIS, and embedding syntax are detected and passed through untouched - they are never filtered or modified
+- The `BREAK` keyword used in SDXL prompts is preserved untouched
+
+#### Gender Tag Filter (`GenderTagFilter`)
+
+- NL fragment detection: natural language fragments mixed into tag lists by TIPO are detected via spaCy dependency parsing (stop-word heuristic fallback) and passed through untouched so the NL Filter can handle them
+- Neopronoun tag mapping: `map_neopronouns` toggle maps neopronoun tags (`shi`, `hir`, `they`, `xe`, `ze`, `ey`, `fae` etc.) to binary equivalents - covers the same set as the NL Filter for consistent standalone behaviour
+- Negation guard: protects tags that appear in a negated context in mixed prompts (e.g. `no breasts`) from removal using a 4-token proximity heuristic
+- Newline-aware input splitting: newlines are treated as hard boundaries between tag and prose sections
+
+#### Gender NL Filter (`GenderNLFilter`)
+
+- `her` pronoun disambiguation: spaCy dependency and morphology analysis distinguishes possessive `her` (→ `his`) from object `her` (→ `him`) for accurate pronoun swaps
+- Cross-gender NL anatomy pairings: `pussy` ↔ `cock`, `vagina` ↔ `penis`, `pecs` ↔ `breasts` and more
+- Precompiled swap patterns: all 10 regex pattern sets are compiled at module load rather than per-call, significantly improving performance on large prompts
+
+#### Dedupe Tags (`DedupeTags`)
+
+- Emphasis-aware deduplication: `(large_breasts:1.3)` and `large_breasts` are correctly identified as the same tag (first occurrence wins)
+- LoRA syntax and `BREAK` keywords always pass through without deduplication
+
+#### Data expansion (`gender_shared.py`)
+
+- **145** female anatomy tags (up from ~40)
+- **118** male anatomy tags (up from ~25)
+- **152** female presentation tags (up from ~50) - now includes exposure/situational tags: `pantyshot`, `upskirt`, `no_bra`, `no_panties`, `visible_bra`, `bra_strap`, `panty_pull`, `skirt_lift`, `dress_lift`, `zettai_ryouiki`, `absolute_territory`
+- **43** male presentation tags (up from ~15)
+- **43** female→male anatomy replacement pairs
+- **29** male→female anatomy replacement pairs
+- **112** female→male clothing tag swaps
+- **56** male→female clothing tag swaps
+- **128** female→male NL word/noun swaps (includes furry terms: `vixen`, `doe`, `mare`, `tigress` etc.)
+- **118** male→female NL word/noun swaps
+- **71** female→male NL clothing patterns
+- **40** male→female NL clothing patterns
+- **36** female anatomy root words for compound tag scanning
+- **33** male anatomy root words for compound tag scanning
+- **35** neopronoun entries covering `shi/hir`, `they/them`, `xe/xem`, `ze/zir`, `ey/em`, `fae/faer`, `ve/ver`, `per`
 
 ### Fixed
 
+- **Negation detection for "no + noun" pattern** (`gender_shared.py`): spaCy labels `no` before a noun as `dep_="det"` (determiner), not `dep_="neg"`, so phrases like `the character has no breasts` were not being detected as negated. `has_negation_ancestor()` now also checks for negation determiners (`no`, `none`, `neither`, `never`) and walks up to the head verb to catch negation on auxiliary/verb nodes
 - Date for last release in the CHANGELOG.md is now correct
+- Removed unused `import logging` and `log = logging.getLogger(__name__)` from `gender_tag_filter.py` and `gender_nl_filter.py`
+- Removed unused `NEOPRONOUN_TAG_FORMS` import from `gender_tag_filter.py`
+
+### Changed
+
+- All data sets converted from `set` to `frozenset` for immutability and slight hash-lookup performance improvement
+- `gender_shared.py` expanded from ~760 lines to ~1600 lines - all data maps, utilities, and precompiled patterns centralised in a single shared module
 
 ## [1.1.0] - 2026-03-16
 
@@ -106,6 +158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - spaCy cannot currently be installed on Python 3.13 or 3.14 due to incompatibilities in its `pydantic v1` and `blis` dependencies. On Python 3.14, `blis` additionally fails to compile because gcc 14 dropped support for the `-mavx512pf` flag that the bundled `blis 0.7.x` source requires. Both nodes automatically fall back to regex mode on affected systems. Workaround: create your ComfyUI venv under Python 3.12.
 
+[1.2.0]: https://github.com/senjinthedragon/comfyui-gender-tag-filter/releases/tag/v1.2.0
 [1.1.0]: https://github.com/senjinthedragon/comfyui-gender-tag-filter/releases/tag/v1.1.0
 [1.0.1]: https://github.com/senjinthedragon/comfyui-gender-tag-filter/releases/tag/v1.0.1
 [1.0.0]: https://github.com/senjinthedragon/comfyui-gender-tag-filter/releases/tag/v1.0.0

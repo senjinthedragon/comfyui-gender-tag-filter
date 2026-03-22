@@ -23,11 +23,16 @@ in Danbooru and e621 style tag lists.
 Designed to sit between a prompt expander (e.g. TIPO) and the CLIP encoder,
 or as the first stage in a chained tag+NL pipeline followed by GenderNLFilter.
 
-Tag processing runs in priority order: NL fragment detection, negation guard,
-neopronoun mapping, anatomy replacement, exact blocklist match (with optional
-clothing swap), compound root scan. Natural language fragments mixed into the
-tag list by TIPO are detected via spaCy dependency parsing (stop-word heuristic
-fallback) and passed through untouched so GenderNLFilter can handle them.
+Supports A1111/Forge emphasis syntax: (tag:1.3), ((tag)), [tag] are all
+correctly parsed, filtered, and re-wrapped. LoRA syntax (<lora:name:weight>),
+hypernetwork syntax, and the BREAK keyword are passed through untouched.
+
+Tag processing runs in priority order: special syntax passthrough, NL fragment
+detection, negation guard, neopronoun mapping, anatomy replacement, exact
+blocklist match (with optional clothing swap), compound root scan. Natural
+language fragments mixed into the tag list by TIPO are detected via spaCy
+dependency parsing (stop-word heuristic fallback) and passed through untouched
+so GenderNLFilter can handle them.
 
 All data maps and utility functions are imported from gender_shared.py.
 
@@ -78,20 +83,18 @@ spacy_model             : str (default "en_core_web_sm")
 """
 
 import re
-import logging
 
 from .gender_shared import (
     load_spacy,
-    preserve_case,
-    make_swap_pattern,
-    apply_swap_patterns,
     normalise_tag,
     format_tag,
     is_natural_language,
     is_negated_regex,
-    NEGATION_WORDS,
+    is_special_syntax,
+    is_break_keyword,
+    unwrap_emphasis,
+    rewrap_emphasis,
     NEOPRONOUN_MAP,
-    NEOPRONOUN_TAG_FORMS,
     FEMALE_ANATOMY_ROOTS,
     MALE_ANATOMY_ROOTS,
     FEMALE_ANATOMY,
@@ -104,10 +107,7 @@ from .gender_shared import (
     MALE_TO_FEMALE_CLOTHING,
 )
 
-log = logging.getLogger(__name__)
-
-
-def _tag_contains_root(tag_norm: str, root_set: set) -> bool:
+def _tag_contains_root(tag_norm: str, root_set: frozenset) -> bool:
     """
     Check whether any anatomy root word appears as a component of a
     compound tag. Splits on underscores to examine each part.
@@ -174,59 +174,63 @@ def filter_gender_tags(
     output_tags = []
     for tag in raw_tags:
 
-        # ── NL detection ─────────────────────────────────────────────────
-        # Natural language fragments pass through untouched for the NL filter.
-        if is_natural_language(tag, nlp):
+        # ── Special syntax passthrough ────────────────────────────────
+        # LoRA, hypernetwork, LyCORIS, embedding syntax and the BREAK
+        # keyword are never filtered.
+        if is_special_syntax(tag) or is_break_keyword(tag):
             output_tags.append(tag)
             continue
 
-        tag_norm = normalise_tag(tag)
+        # ── Emphasis unwrapping ───────────────────────────────────────
+        # Strip (tag:1.3), ((tag)), [tag] etc. to get the inner tag for
+        # matching, then re-wrap the result with the original emphasis.
+        inner_tag, emph_prefix, emph_suffix = unwrap_emphasis(tag)
 
-        # ── Negation guard ────────────────────────────────────────────────
-        # Only applies to NL fragments - for standalone tags, a "no_breasts"
-        # tag elsewhere in the list is an independent model instruction with
-        # no grammatical relationship to a standalone "breasts" tag.
-        # We detect NL context by checking if the tag itself contains a
-        # negation word as a compound component (e.g. "no_breasts" starts
-        # with "no") - those are Danbooru negation tags and won't be in the
-        # blocklist anyway, so the guard only matters for mixed NL prompts
-        # where a sentence like "without breasts" appears as a chunk.
-        # We therefore only run the negation guard on multi-word chunks that
-        # look like they could be part of a sentence rather than a pure tag.
+        # ── NL detection ─────────────────────────────────────────────
+        # Natural language fragments pass through untouched for the NL filter.
+        if is_natural_language(inner_tag, nlp):
+            output_tags.append(tag)
+            continue
+
+        tag_norm = normalise_tag(inner_tag)
+
+        # ── Negation guard ────────────────────────────────────────────
+        # Only applies to multi-word chunks that could be part of a
+        # sentence rather than a pure tag.
         tag_words = tag_norm.replace("_", " ").split()
         if handle_negations and len(tag_words) > 1:
-            if is_negated_regex(tag, tag_norm.replace("_", " ")):
-                output_tags.append(_format(tag))
+            if is_negated_regex(inner_tag, tag_norm.replace("_", " ")):
+                output_tags.append(rewrap_emphasis(_format(inner_tag), emph_prefix, emph_suffix))
                 continue
 
-        # ── Neopronoun mapping ────────────────────────────────────────────
+        # ── Neopronoun mapping ────────────────────────────────────────
         if map_neopronouns and tag_norm in neo_swap:
             replacement = neo_swap[tag_norm]
             if replacement:
-                output_tags.append(_format(replacement))
+                output_tags.append(rewrap_emphasis(_format(replacement), emph_prefix, emph_suffix))
             continue
 
-        # ── Anatomy replacement pass ──────────────────────────────────────
+        # ── Anatomy replacement pass ──────────────────────────────────
         if apply_replacements and tag_norm in replacement_map:
             replacement = replacement_map[tag_norm]
             if replacement:
-                output_tags.append(_format(replacement))
+                output_tags.append(rewrap_emphasis(_format(replacement), emph_prefix, emph_suffix))
             continue
 
-        # ── Exact blocklist match ─────────────────────────────────────────
+        # ── Exact blocklist match ─────────────────────────────────────
         if tag_norm in blocklist:
             if swap_clothing_tags and filter_presentation and tag_norm in clothing_replacement:
                 replacement = clothing_replacement[tag_norm]
                 if replacement:
-                    output_tags.append(_format(replacement))
+                    output_tags.append(rewrap_emphasis(_format(replacement), emph_prefix, emph_suffix))
             continue
 
-        # ── Compound tag root scan ────────────────────────────────────────
+        # ── Compound tag root scan ────────────────────────────────────
         if filter_anatomy and _tag_contains_root(tag_norm, anatomy_roots):
             continue
 
-        # ── Tag survived ──────────────────────────────────────────────────
-        output_tags.append(_format(tag))
+        # ── Tag survived ──────────────────────────────────────────────
+        output_tags.append(rewrap_emphasis(_format(inner_tag), emph_prefix, emph_suffix))
 
     return delimiter.join(output_tags)
 
@@ -279,7 +283,8 @@ class GenderTagFilter:
                     "tooltip": (
                         "Replace removed anatomy tags with gender-appropriate\n"
                         "counterparts instead of just deleting them.\n"
-                        "e.g. large_breasts -> muscular_chest, breasts -> pecs"
+                        "e.g. large_breasts -> muscular_chest, breasts -> pecs\n"
+                        "     1girl -> 1boy, yuri -> yaoi, cameltoe -> bulge"
                     ),
                 }),
                 "swap_clothing_tags": ("BOOLEAN", {
@@ -298,7 +303,7 @@ class GenderTagFilter:
                         "Map neopronoun tags to binary equivalents that image\n"
                         "models are likely to recognise from their training data.\n"
                         "Covers: shi/hir (Chakat/furry), they/them, xe/xem,\n"
-                        "ze/zir, ey/em (Spivak), fae/faer.\n"
+                        "ze/zir, ey/em (Spivak), fae/faer, ve/ver, per.\n"
                         "When off, neopronoun tags pass through unchanged."
                     ),
                 }),
