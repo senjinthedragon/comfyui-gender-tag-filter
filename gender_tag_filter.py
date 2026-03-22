@@ -23,11 +23,16 @@ in Danbooru and e621 style tag lists.
 Designed to sit between a prompt expander (e.g. TIPO) and the CLIP encoder,
 or as the first stage in a chained tag+NL pipeline followed by GenderNLFilter.
 
-Tag processing runs in priority order: NL fragment detection, negation guard,
-neopronoun mapping, anatomy replacement, exact blocklist match (with optional
-clothing swap), compound root scan. Natural language fragments mixed into the
-tag list by TIPO are detected via spaCy dependency parsing (stop-word heuristic
-fallback) and passed through untouched so GenderNLFilter can handle them.
+Supports A1111/Forge emphasis syntax: (tag:1.3), ((tag)), [tag] are all
+correctly parsed, filtered, and re-wrapped. LoRA syntax (<lora:name:weight>),
+hypernetwork syntax, and the BREAK keyword are passed through untouched.
+
+Tag processing runs in priority order: special syntax passthrough, NL fragment
+detection, negation guard, neopronoun mapping, anatomy replacement, exact
+blocklist match (with optional clothing swap), compound root scan. Natural
+language fragments mixed into the tag list by TIPO are detected via spaCy
+dependency parsing (stop-word heuristic fallback) and passed through untouched
+so GenderNLFilter can handle them.
 
 All data maps and utility functions are imported from gender_shared.py.
 
@@ -40,15 +45,16 @@ filter_anatomy          : bool (default True)
                           for anatomy root words - huge_breasts, breast_grab
                           etc. are all caught even if not individually listed.
 
-filter_presentation     : bool (default False)
-                          Also remove gendered clothing/accessory tags.
-                          Disable for crossdressing characters.
-
-apply_replacements      : bool (default False)
+replace_anatomy         : bool (default False)
                           Replace removed anatomy tags with gender-appropriate
                           counterparts. e.g. large_breasts -> muscular_chest
+                          Has no effect when filter_anatomy is off.
 
-swap_clothing_tags      : bool (default True)
+filter_presentation     : bool (default False)
+                          Remove gendered clothing/accessory/makeup tags.
+                          Disable for crossdressing characters.
+
+swap_clothing           : bool (default True)
                           When filter_presentation is on, replace clothing tags
                           with equivalents rather than removing.
                           e.g. skirt -> trousers, bikini -> swim_trunks
@@ -65,33 +71,29 @@ handle_negations        : bool (default True)
                           e.g. a tag appearing after 'no' or 'without' in a
                           mixed prompt is left untouched.
 
-tag_format              : "underscores" | "spaces"
+use_underscores         : bool (default True)
                           Output word separator style.
+                          True -> underscores, False -> spaces.
                           NL fragments bypass this and keep original spacing.
 
-delimiter               : str (default ", ")
-                          Tag separator. Input is parsed forgivingly.
-
-spacy_model             : str (default "en_core_web_sm")
-                          Used for NL fragment detection.
-                          Falls back to stop-word heuristic if not installed.
+spacy_nlp               : SPACY_NLP (optional)
+                          Connect a SpaCy Model Loader node to enable spaCy-backed
+                          NL fragment detection. Leave disconnected to use the
+                          stop-word heuristic fallback instead.
 """
 
 import re
-import logging
 
 from .gender_shared import (
-    load_spacy,
-    preserve_case,
-    make_swap_pattern,
-    apply_swap_patterns,
     normalise_tag,
     format_tag,
     is_natural_language,
     is_negated_regex,
-    NEGATION_WORDS,
+    is_special_syntax,
+    is_break_keyword,
+    unwrap_emphasis,
+    rewrap_emphasis,
     NEOPRONOUN_MAP,
-    NEOPRONOUN_TAG_FORMS,
     FEMALE_ANATOMY_ROOTS,
     MALE_ANATOMY_ROOTS,
     FEMALE_ANATOMY,
@@ -102,12 +104,11 @@ from .gender_shared import (
     MALE_TO_FEMALE_REPLACEMENTS,
     FEMALE_TO_MALE_CLOTHING,
     MALE_TO_FEMALE_CLOTHING,
+    FEMALE_TO_MALE_WORDS,
+    MALE_TO_FEMALE_WORDS,
 )
 
-log = logging.getLogger(__name__)
-
-
-def _tag_contains_root(tag_norm: str, root_set: set) -> bool:
+def _tag_contains_root(tag_norm: str, root_set: frozenset) -> bool:
     """
     Check whether any anatomy root word appears as a component of a
     compound tag. Splits on underscores to examine each part.
@@ -120,41 +121,62 @@ def filter_gender_tags(
     text: str,
     mode: str = "off",
     filter_anatomy: bool = True,
+    replace_anatomy: bool = False,
     filter_presentation: bool = False,
-    apply_replacements: bool = False,
-    swap_clothing_tags: bool = True,
+    swap_clothing: bool = True,
+    use_underscores: bool = True,
+    rewrite_references: bool = True,
     map_neopronouns: bool = True,
     handle_negations: bool = True,
-    tag_format: str = "underscores",
-    delimiter: str = ", ",
-    spacy_model: str = "en_core_web_sm",
+    nlp=None,
 ) -> str:
     if mode == "off" or not text.strip():
         return text
 
-    split_char = delimiter.strip() or delimiter
-
-    # Split on newlines first (hard boundary between tag section and NL prose),
-    # then on the delimiter within each line.
+    # Split on commas, strip surrounding whitespace from each tag.
+    # Handles any spacing variant: "a, b", "a,b", "a ,  b" etc.
     raw_chunks = re.split(r'\n+', text)
     raw_tags = []
     for chunk in raw_chunks:
-        raw_tags.extend(t.strip() for t in chunk.split(split_char) if t.strip())
+        raw_tags.extend(t.strip() for t in chunk.split(",") if t.strip())
+
+    def _format(tag: str) -> str:
+        return format_tag(tag, "underscores" if use_underscores else "spaces")
+
+    # ── Format-only mode ──────────────────────────────────────────────────────
+    # No filtering — just normalise and reformat each tag. Special syntax and
+    # NL fragments pass through untouched exactly as in the filter modes.
+    if mode == "format_only":
+        output_tags = []
+        for tag in raw_tags:
+            if is_special_syntax(tag) or is_break_keyword(tag):
+                output_tags.append(tag)
+                continue
+            inner_tag, emph_prefix, emph_suffix = unwrap_emphasis(tag)
+            if is_natural_language(inner_tag, nlp):
+                output_tags.append(tag)
+                continue
+            output_tags.append(rewrap_emphasis(_format(inner_tag), emph_prefix, emph_suffix))
+        return ", ".join(output_tags)
 
     if mode == "strip_female_tags":
-        anatomy_blocklist    = FEMALE_ANATOMY
+        anatomy_blocklist      = FEMALE_ANATOMY
         presentation_blocklist = FEMALE_PRESENTATION
-        replacement_map      = FEMALE_TO_MALE_REPLACEMENTS
-        clothing_replacement = FEMALE_TO_MALE_CLOTHING
-        anatomy_roots        = FEMALE_ANATOMY_ROOTS
-        neo_index            = 0   # male target
-    else:
-        anatomy_blocklist    = MALE_ANATOMY
+        replacement_map        = FEMALE_TO_MALE_REPLACEMENTS
+        clothing_replacement   = FEMALE_TO_MALE_CLOTHING
+        anatomy_roots          = FEMALE_ANATOMY_ROOTS
+        word_map               = FEMALE_TO_MALE_WORDS
+        neo_index              = 0   # male target
+    elif mode == "strip_male_tags":
+        anatomy_blocklist      = MALE_ANATOMY
         presentation_blocklist = MALE_PRESENTATION
-        replacement_map      = MALE_TO_FEMALE_REPLACEMENTS
-        clothing_replacement = MALE_TO_FEMALE_CLOTHING
-        anatomy_roots        = MALE_ANATOMY_ROOTS
-        neo_index            = 1   # female target
+        replacement_map        = MALE_TO_FEMALE_REPLACEMENTS
+        clothing_replacement   = MALE_TO_FEMALE_CLOTHING
+        anatomy_roots          = MALE_ANATOMY_ROOTS
+        word_map               = MALE_TO_FEMALE_WORDS
+        neo_index              = 1   # female target
+    else:
+        return text
 
     blocklist = set()
     if filter_anatomy:
@@ -165,70 +187,76 @@ def filter_gender_tags(
     # Build neopronoun swap map for this mode
     neo_swap = {k: v[neo_index] for k, v in NEOPRONOUN_MAP.items()}
 
-    # Load spaCy for NL detection (silent fallback to heuristic on failure)
-    nlp = load_spacy(spacy_model)
-
-    def _format(tag: str) -> str:
-        return format_tag(tag, tag_format)
-
     output_tags = []
     for tag in raw_tags:
 
-        # ── NL detection ─────────────────────────────────────────────────
-        # Natural language fragments pass through untouched for the NL filter.
-        if is_natural_language(tag, nlp):
+        # ── Special syntax passthrough ────────────────────────────────
+        # LoRA, hypernetwork, LyCORIS, embedding syntax and the BREAK
+        # keyword are never filtered.
+        if is_special_syntax(tag) or is_break_keyword(tag):
             output_tags.append(tag)
             continue
 
-        tag_norm = normalise_tag(tag)
+        # ── Emphasis unwrapping ───────────────────────────────────────
+        # Strip (tag:1.3), ((tag)), [tag] etc. to get the inner tag for
+        # matching, then re-wrap the result with the original emphasis.
+        inner_tag, emph_prefix, emph_suffix = unwrap_emphasis(tag)
 
-        # ── Negation guard ────────────────────────────────────────────────
-        # Only applies to NL fragments - for standalone tags, a "no_breasts"
-        # tag elsewhere in the list is an independent model instruction with
-        # no grammatical relationship to a standalone "breasts" tag.
-        # We detect NL context by checking if the tag itself contains a
-        # negation word as a compound component (e.g. "no_breasts" starts
-        # with "no") - those are Danbooru negation tags and won't be in the
-        # blocklist anyway, so the guard only matters for mixed NL prompts
-        # where a sentence like "without breasts" appears as a chunk.
-        # We therefore only run the negation guard on multi-word chunks that
-        # look like they could be part of a sentence rather than a pure tag.
+        # ── NL detection ─────────────────────────────────────────────
+        # Natural language fragments pass through untouched for the NL filter.
+        if is_natural_language(inner_tag, nlp):
+            output_tags.append(tag)
+            continue
+
+        tag_norm = normalise_tag(inner_tag)
+
+        # ── Negation guard ────────────────────────────────────────────
+        # Only applies to multi-word chunks that could be part of a
+        # sentence rather than a pure tag.
         tag_words = tag_norm.replace("_", " ").split()
         if handle_negations and len(tag_words) > 1:
-            if is_negated_regex(tag, tag_norm.replace("_", " ")):
-                output_tags.append(_format(tag))
+            if is_negated_regex(inner_tag, tag_norm.replace("_", " ")):
+                output_tags.append(rewrap_emphasis(_format(inner_tag), emph_prefix, emph_suffix))
                 continue
 
-        # ── Neopronoun mapping ────────────────────────────────────────────
+        # ── Neopronoun mapping ────────────────────────────────────────
         if map_neopronouns and tag_norm in neo_swap:
             replacement = neo_swap[tag_norm]
             if replacement:
-                output_tags.append(_format(replacement))
+                output_tags.append(rewrap_emphasis(_format(replacement), emph_prefix, emph_suffix))
             continue
 
-        # ── Anatomy replacement pass ──────────────────────────────────────
-        if apply_replacements and tag_norm in replacement_map:
+        # ── Anatomy replacement pass ──────────────────────────────────
+        if replace_anatomy and tag_norm in replacement_map:
             replacement = replacement_map[tag_norm]
             if replacement:
-                output_tags.append(_format(replacement))
+                output_tags.append(rewrap_emphasis(_format(replacement), emph_prefix, emph_suffix))
             continue
 
-        # ── Exact blocklist match ─────────────────────────────────────────
+        # ── Gendered word/reference replacement ───────────────────────
+        # Catches standalone gendered noun tags: woman, girl, vixen, doe...
+        if rewrite_references and tag_norm in word_map:
+            replacement = word_map[tag_norm]
+            if replacement:
+                output_tags.append(rewrap_emphasis(_format(replacement), emph_prefix, emph_suffix))
+            continue
+
+        # ── Exact blocklist match ─────────────────────────────────────
         if tag_norm in blocklist:
-            if swap_clothing_tags and filter_presentation and tag_norm in clothing_replacement:
+            if swap_clothing and filter_presentation and tag_norm in clothing_replacement:
                 replacement = clothing_replacement[tag_norm]
                 if replacement:
-                    output_tags.append(_format(replacement))
+                    output_tags.append(rewrap_emphasis(_format(replacement), emph_prefix, emph_suffix))
             continue
 
-        # ── Compound tag root scan ────────────────────────────────────────
+        # ── Compound tag root scan ────────────────────────────────────
         if filter_anatomy and _tag_contains_root(tag_norm, anatomy_roots):
             continue
 
-        # ── Tag survived ──────────────────────────────────────────────────
-        output_tags.append(_format(tag))
+        # ── Tag survived ──────────────────────────────────────────────
+        output_tags.append(rewrap_emphasis(_format(inner_tag), emph_prefix, emph_suffix))
 
-    return delimiter.join(output_tags)
+    return ", ".join(output_tags)
 
 
 # ---------------------------------------------------------------------------
@@ -244,20 +272,32 @@ class GenderTagFilter:
     @classmethod
     def INPUT_TYPES(cls):
         return {
+            "optional": {
+                "spacy_nlp": ("SPACY_NLP", {
+                    "tooltip": (
+                        "Connect a SpaCy Model Loader node to enable spaCy-backed\n"
+                        "NL fragment detection. Leave disconnected to use the\n"
+                        "stop-word heuristic fallback instead."
+                    ),
+                }),
+            },
             "required": {
+                # ── Core ──────────────────────────────────────────────────────
                 "text": ("STRING", {
                     "multiline": True,
                     "default": "",
                     "tooltip": "Tag string to filter. NL fragments are detected and preserved automatically.",
                 }),
-                "mode": (["off", "strip_female_tags", "strip_male_tags"], {
+                "mode": (["off", "strip_female_tags", "strip_male_tags", "format_only"], {
                     "default": "strip_female_tags",
                     "tooltip": (
                         "'strip_female_tags' -> remove female anatomy/presentation tags\n"
                         "'strip_male_tags'   -> remove male anatomy/presentation tags\n"
-                        "'off'               -> pass through unchanged"
+                        "'format_only'       -> no filtering; apply use_underscores only\n"
+                        "'off'               -> pass through completely unchanged"
                     ),
                 }),
+                # ── Anatomy ───────────────────────────────────────────────────
                 "filter_anatomy": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
@@ -267,22 +307,25 @@ class GenderTagFilter:
                         "caught even if not individually listed."
                     ),
                 }),
-                "filter_presentation": ("BOOLEAN", {
-                    "default": False,
-                    "tooltip": (
-                        "Also remove gendered clothing/accessory/makeup tags.\n"
-                        "Disable for crossdressing characters."
-                    ),
-                }),
-                "apply_replacements": ("BOOLEAN", {
+                "replace_anatomy": ("BOOLEAN", {
                     "default": False,
                     "tooltip": (
                         "Replace removed anatomy tags with gender-appropriate\n"
                         "counterparts instead of just deleting them.\n"
-                        "e.g. large_breasts -> muscular_chest, breasts -> pecs"
+                        "e.g. large_breasts -> muscular_chest, breasts -> pecs\n"
+                        "     1girl -> 1boy, yuri -> yaoi, cameltoe -> bulge\n"
+                        "Has no effect when filter_anatomy is off."
                     ),
                 }),
-                "swap_clothing_tags": ("BOOLEAN", {
+                # ── Clothing / Presentation ───────────────────────────────────
+                "filter_presentation": ("BOOLEAN", {
+                    "default": False,
+                    "tooltip": (
+                        "Remove gendered clothing, accessory, and makeup tags.\n"
+                        "Disable for crossdressing characters."
+                    ),
+                }),
+                "swap_clothing": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
                         "When filter_presentation is on, replace clothing tags\n"
@@ -292,16 +335,39 @@ class GenderTagFilter:
                         "Has no effect when filter_presentation is off."
                     ),
                 }),
+                # ── Output format ─────────────────────────────────────────────
+                "use_underscores": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": (
+                        "Output word separator style.\n"
+                        "On  -> big_breasts  (Danbooru/e621, most SDXL models)\n"
+                        "Off -> big breasts  (some fine-tuned models)\n"
+                        "Input tags are always accepted in either style.\n"
+                        "Natural language fragments bypass this setting entirely."
+                    ),
+                }),
+                # ── References ────────────────────────────────────────────────
+                "rewrite_references": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": (
+                        "Swap standalone gendered noun tags.\n"
+                        "woman -> man, girl -> boy, vixen -> fox, doe -> buck etc.\n"
+                        "Covers the same word set as the NL Filter's rewrite_references\n"
+                        "for consistent behaviour across both nodes."
+                    ),
+                }),
+                # ── Pronouns ──────────────────────────────────────────────────
                 "map_neopronouns": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
                         "Map neopronoun tags to binary equivalents that image\n"
                         "models are likely to recognise from their training data.\n"
                         "Covers: shi/hir (Chakat/furry), they/them, xe/xem,\n"
-                        "ze/zir, ey/em (Spivak), fae/faer.\n"
+                        "ze/zir, ey/em (Spivak), fae/faer, ve/ver, per.\n"
                         "When off, neopronoun tags pass through unchanged."
                     ),
                 }),
+                # ── Safety ────────────────────────────────────────────────────
                 "handle_negations": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
@@ -311,50 +377,25 @@ class GenderTagFilter:
                         "Uses a 4-token proximity heuristic."
                     ),
                 }),
-                "tag_format": (["underscores", "spaces"], {
-                    "default": "underscores",
-                    "tooltip": (
-                        "Word separator style expected by your model.\n"
-                        "'underscores' -> big_breasts  (Danbooru/e621, most SDXL models)\n"
-                        "'spaces'      -> big breasts  (some fine-tuned models)\n"
-                        "Input tags are always accepted in either style.\n"
-                        "Natural language fragments bypass this setting entirely."
-                    ),
-                }),
-                "delimiter": ("STRING", {
-                    "default": ", ",
-                    "tooltip": (
-                        "Separator used between output tags.\n"
-                        "Input is parsed forgivingly - whitespace around tags\n"
-                        "is stripped automatically."
-                    ),
-                }),
-                "spacy_model": ("STRING", {
-                    "default": "en_core_web_sm",
-                    "tooltip": (
-                        "spaCy model for NL fragment detection.\n"
-                        "Falls back to stop-word heuristic if spaCy is not installed.\n"
-                        "en_core_web_sm (~12MB) is sufficient for this purpose."
-                    ),
-                }),
             }
         }
 
-    def run(self, text, mode, filter_anatomy, filter_presentation,
-            apply_replacements, swap_clothing_tags, map_neopronouns,
-            handle_negations, tag_format, delimiter, spacy_model):
-        return (filter_gender_tags(
+    def run(self, text, mode, filter_anatomy, replace_anatomy,
+            filter_presentation, swap_clothing, use_underscores, rewrite_references,
+            map_neopronouns, handle_negations, spacy_nlp=None):
+        filtered = filter_gender_tags(
             text=text, mode=mode,
             filter_anatomy=filter_anatomy,
+            replace_anatomy=replace_anatomy,
             filter_presentation=filter_presentation,
-            apply_replacements=apply_replacements,
-            swap_clothing_tags=swap_clothing_tags,
+            swap_clothing=swap_clothing,
+            use_underscores=use_underscores,
+            rewrite_references=rewrite_references,
             map_neopronouns=map_neopronouns,
             handle_negations=handle_negations,
-            tag_format=tag_format,
-            delimiter=delimiter,
-            spacy_model=spacy_model,
-        ),)
+            nlp=spacy_nlp,
+        )
+        return (filtered,)
 
 
 NODE_CLASS_MAPPINGS      = {"GenderTagFilter": GenderTagFilter}

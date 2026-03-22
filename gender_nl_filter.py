@@ -27,12 +27,15 @@ double-processing content already handled by GenderTagFilter.
 Both nodes accept and output STRING, so they wire together naturally.
 
 Uses spaCy for accurate negation detection (dependency tree neg relation),
-plural they/them disambiguation (morphology + subject count heuristic), and
-multi-word clothing span matching (token-index lookahead). Falls back to regex
+plural they/them disambiguation (morphology + subject count heuristic),
+pronoun case disambiguation (possessive vs object "her"), and multi-word
+clothing span matching (token-index lookahead). Falls back to regex
 processing automatically if spaCy is not installed, with a warning logged to
 the ComfyUI console.
 
 All data maps and utility functions are imported from gender_shared.py.
+Precompiled swap patterns from gender_shared.py are used by the regex
+fallback, avoiding repeated recompilation on every call.
 
 Controls
 --------
@@ -76,14 +79,15 @@ swap_clothing           : bool (default True)
 map_neopronouns         : bool (default True)
                           Map neopronouns to binary equivalents image models
                           recognise. Covers shi/hir, they/them, xe/xem, ze/zir,
-                          ey/em, fae/faer. Plural they/them preserved by spaCy
-                          (regex fallback is approximate).
+                          ey/em, fae/faer, ve/ver, per. Plural they/them
+                          preserved by spaCy (regex fallback is approximate).
 
-spacy_model             : str (default "en_core_web_sm")
-                          Falls back to regex if spaCy is not installed.
+spacy_nlp               : SPACY_NLP (optional)
+                          Connect a SpaCy Model Loader node to enable spaCy-backed
+                          NLP processing. Leave disconnected to use the regex
+                          fallback instead.
 """
 
-import logging
 import re
 
 from .gender_shared import (
@@ -99,18 +103,25 @@ from .gender_shared import (
     MALE_TO_FEMALE_PRONOUNS,
     MALE_TO_FEMALE_WORDS,
     NEOPRONOUN_MAP,
+    # Precompiled swap patterns
+    FEMALE_PRONOUN_PATTERNS,
+    MALE_PRONOUN_PATTERNS,
+    FEMALE_WORD_PATTERNS,
+    MALE_WORD_PATTERNS,
+    FEMALE_CLOTHING_NL_PATTERNS,
+    MALE_CLOTHING_NL_PATTERNS,
+    FEMALE_CLOTHING_NL_REMOVE_PATTERNS,
+    MALE_CLOTHING_NL_REMOVE_PATTERNS,
+    NEO_TO_MALE_PATTERNS,
+    NEO_TO_FEMALE_PATTERNS,
     apply_swap_patterns,
     chunk_is_tag,
+    disambiguate_her_spacy,
     has_negation_ancestor,
     is_negated_regex,
     is_plural_they,
-    load_spacy,
-    make_swap_pattern,
     preserve_case,
 )
-
-log = logging.getLogger(__name__)
-
 
 # ---------------------------------------------------------------------------
 # Regex fallback
@@ -145,19 +156,23 @@ def _process_regex(text, mode, filter_anatomy, replace_anatomy, handle_negations
                    handle_pronouns, rewrite_references, filter_presentation,
                    swap_clothing, map_neopronouns):
     if mode == "strip_female_language":
-        pronoun_map          = FEMALE_TO_MALE_PRONOUNS
-        word_map             = FEMALE_TO_MALE_WORDS
+        pronoun_patterns     = FEMALE_PRONOUN_PATTERNS
+        word_patterns        = FEMALE_WORD_PATTERNS
         anatomy_set          = FEMALE_ANATOMY_NL
         anatomy_replacements = FEMALE_ANATOMY_NL_REPLACEMENTS
-        clothing_map         = CLOTHING_FEMALE_TO_MALE_NL
-        neo_index            = 0
-    else:
-        pronoun_map          = MALE_TO_FEMALE_PRONOUNS
-        word_map             = MALE_TO_FEMALE_WORDS
+        clothing_patterns    = FEMALE_CLOTHING_NL_PATTERNS
+        clothing_rm_patterns = FEMALE_CLOTHING_NL_REMOVE_PATTERNS
+        neo_patterns         = NEO_TO_MALE_PATTERNS
+    elif mode == "strip_male_language":
+        pronoun_patterns     = MALE_PRONOUN_PATTERNS
+        word_patterns        = MALE_WORD_PATTERNS
         anatomy_set          = MALE_ANATOMY_NL
         anatomy_replacements = MALE_ANATOMY_NL_REPLACEMENTS
-        clothing_map         = CLOTHING_MALE_TO_FEMALE_NL
-        neo_index            = 1
+        clothing_patterns    = MALE_CLOTHING_NL_PATTERNS
+        clothing_rm_patterns = MALE_CLOTHING_NL_REMOVE_PATTERNS
+        neo_patterns         = NEO_TO_FEMALE_PATTERNS
+    else:
+        return text
 
     # Split on commas, skip standalone tags, process NL chunks
     chunks = [c.strip() for c in text.split(",")]
@@ -175,20 +190,18 @@ def _process_regex(text, mode, filter_anatomy, replace_anatomy, handle_negations
                 chunk, anatomy_set, anatomy_replacements,
                 handle_negations, replace_anatomy
             )
-        if filter_presentation and swap_clothing:
-            chunk = apply_swap_patterns(chunk, make_swap_pattern(clothing_map))
-        elif filter_presentation and not swap_clothing:
-            # Remove clothing terms without replacement
-            remove_map = {k: None for k in clothing_map}
-            chunk = apply_swap_patterns(chunk, make_swap_pattern(remove_map))
+        if filter_presentation:
+            if swap_clothing:
+                chunk = apply_swap_patterns(chunk, clothing_patterns)
+            else:
+                chunk = apply_swap_patterns(chunk, clothing_rm_patterns)
 
         if map_neopronouns:
-            neo_swap = {k: v[neo_index] for k, v in NEOPRONOUN_MAP.items()}
-            chunk = apply_swap_patterns(chunk, make_swap_pattern(neo_swap))
+            chunk = apply_swap_patterns(chunk, neo_patterns)
         if handle_pronouns:
-            chunk = apply_swap_patterns(chunk, make_swap_pattern(pronoun_map))
+            chunk = apply_swap_patterns(chunk, pronoun_patterns)
         if rewrite_references:
-            chunk = apply_swap_patterns(chunk, make_swap_pattern(word_map))
+            chunk = apply_swap_patterns(chunk, word_patterns)
 
         processed.append(chunk)
 
@@ -209,13 +222,15 @@ def _process_spacy(text, nlp, mode, filter_anatomy, replace_anatomy,
         anatomy_replacements = FEMALE_ANATOMY_NL_REPLACEMENTS
         clothing_map         = CLOTHING_FEMALE_TO_MALE_NL
         neo_index            = 0
-    else:
+    elif mode == "strip_male_language":
         pronoun_map          = MALE_TO_FEMALE_PRONOUNS
         word_map             = MALE_TO_FEMALE_WORDS
         anatomy_set          = MALE_ANATOMY_NL
         anatomy_replacements = MALE_ANATOMY_NL_REPLACEMENTS
         clothing_map         = CLOTHING_MALE_TO_FEMALE_NL
         neo_index            = 1
+    else:
+        return text
 
     neo_swap = {k: v[neo_index] for k, v in NEOPRONOUN_MAP.items()}
     clothing_sorted = sorted(clothing_map.items(), key=lambda x: -len(x[0]))
@@ -305,7 +320,13 @@ def _process_spacy(text, nlp, mode, filter_anatomy, replace_anatomy,
 
             # ── Binary pronouns ───────────────────────────────────────────
             if handle_pronouns and token_lower in pronoun_map:
-                result_tokens.append(preserve_case(token.text, pronoun_map[token_lower]) + ws)
+                # Disambiguate "her" between possessive (-> his) and
+                # object (-> him) using spaCy dependency parsing.
+                if token_lower == "her" and mode == "strip_female_language":
+                    replacement = disambiguate_her_spacy(token)
+                    result_tokens.append(preserve_case(token.text, replacement) + ws)
+                else:
+                    result_tokens.append(preserve_case(token.text, pronoun_map[token_lower]) + ws)
                 i += 1
                 continue
 
@@ -335,18 +356,16 @@ def filter_nl_gender(
     mode: str = "off",
     filter_anatomy: bool = True,
     replace_anatomy: bool = True,
-    handle_negations: bool = True,
-    handle_pronouns: bool = True,
-    rewrite_references: bool = True,
     filter_presentation: bool = True,
     swap_clothing: bool = True,
+    handle_pronouns: bool = True,
+    rewrite_references: bool = True,
     map_neopronouns: bool = True,
-    spacy_model: str = "en_core_web_sm",
-) -> tuple:
+    handle_negations: bool = True,
+    nlp=None,
+) -> str:
     if mode == "off" or not text.strip():
-        return text, "off"
-
-    nlp = load_spacy(spacy_model)
+        return text
 
     kwargs = dict(
         mode=mode,
@@ -361,9 +380,9 @@ def filter_nl_gender(
     )
 
     if nlp is not None:
-        return _process_spacy(text=text, nlp=nlp, **kwargs), "spacy"
+        return _process_spacy(text=text, nlp=nlp, **kwargs)
     else:
-        return _process_regex(text=text, **kwargs), "regex"
+        return _process_regex(text=text, **kwargs)
 
 
 # ---------------------------------------------------------------------------
@@ -373,13 +392,24 @@ def filter_nl_gender(
 class GenderNLFilter:
     CATEGORY = "utils/tags"
     FUNCTION = "run"
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("filtered_text", "backend_used")
+    RETURN_TYPES = ("STRING",)
+    RETURN_NAMES = ("filtered_text",)
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
+            "optional": {
+                "spacy_nlp": ("SPACY_NLP", {
+                    "tooltip": (
+                        "Connect a SpaCy Model Loader node to enable spaCy-backed\n"
+                        "NLP processing with accurate negation detection, pronoun\n"
+                        "disambiguation, and multi-word span matching.\n"
+                        "Leave disconnected to use the regex fallback instead."
+                    ),
+                }),
+            },
             "required": {
+                # ── Core ──────────────────────────────────────────────────────
                 "text": ("STRING", {
                     "multiline": True,
                     "default": "",
@@ -397,6 +427,7 @@ class GenderNLFilter:
                         "'off'                   -> pass through unchanged"
                     ),
                 }),
+                # ── Anatomy ───────────────────────────────────────────────────
                 "filter_anatomy": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
@@ -410,33 +441,12 @@ class GenderNLFilter:
                         "Replace anatomy words with gender-appropriate counterparts\n"
                         "rather than removing them entirely.\n"
                         "e.g. 'Her breasts bounced' -> 'His pecs bounced'\n"
+                        "     'His cock throbbed' -> 'Her pussy throbbed'\n"
                         "Words with no clean equivalent are still removed.\n"
                         "Has no effect when filter_anatomy is off."
                     ),
                 }),
-                "handle_negations": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": (
-                        "Protect negated anatomy terms from removal or replacement.\n"
-                        "e.g. 'no breasts' and 'without a vagina' are left untouched.\n"
-                        "spaCy uses dependency parsing; regex uses 4-token heuristic."
-                    ),
-                }),
-                "handle_pronouns": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": (
-                        "Swap binary gendered pronouns.\n"
-                        "she/her/hers/herself  <->  he/him/his/himself"
-                    ),
-                }),
-                "rewrite_references": ("BOOLEAN", {
-                    "default": True,
-                    "tooltip": (
-                        "Swap gendered nouns and adjectives.\n"
-                        "woman/girl/lady/feminine  <->  man/boy/guy/masculine\n"
-                        "Also covers furry terms: vixen/doe/mare/tigress etc."
-                    ),
-                }),
+                # ── Clothing / Presentation ───────────────────────────────────
                 "filter_presentation": ("BOOLEAN", {
                     "default": True,
                     "tooltip": (
@@ -455,45 +465,64 @@ class GenderNLFilter:
                         "Has no effect when filter_presentation is off."
                     ),
                 }),
+                # ── Pronouns / References ─────────────────────────────────────
+                "handle_pronouns": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": (
+                        "Swap binary gendered pronouns.\n"
+                        "she/her/hers/herself  <->  he/him/his/himself\n"
+                        "spaCy correctly disambiguates 'her' between\n"
+                        "possessive (-> his) and object (-> him)."
+                    ),
+                }),
+                "rewrite_references": ("BOOLEAN", {
+                    "default": True,
+                    "tooltip": (
+                        "Swap gendered nouns and adjectives.\n"
+                        "woman/girl/lady/feminine  <->  man/boy/guy/masculine\n"
+                        "Also covers furry terms: vixen/doe/mare/tigress etc.\n"
+                        "Plus titles, family terms, and mythological figures."
+                    ),
+                }),
                 "map_neopronouns": ("BOOLEAN", {
+
                     "default": True,
                     "tooltip": (
                         "Map neopronouns to binary equivalents image models recognise.\n"
                         "Covers: shi/hir (Chakat/furry), they/them, xe/xem,\n"
-                        "ze/zir, ey/em (Spivak), fae/faer.\n"
+                        "ze/zir, ey/em (Spivak), fae/faer, ve/ver, per.\n"
                         "Plural they/them preserved by spaCy (regex is approximate).\n"
                         "When off, all neopronouns pass through unchanged."
                     ),
                 }),
-                "spacy_model": ("STRING", {
-                    "default": "en_core_web_sm",
+                # ── Safety ────────────────────────────────────────────────────
+                "handle_negations": ("BOOLEAN", {
+                    "default": True,
                     "tooltip": (
-                        "spaCy model for NLP processing.\n"
-                        "en_core_web_sm  ~12MB  - good for most cases (recommended)\n"
-                        "en_core_web_md  ~43MB  - better word vectors\n"
-                        "en_core_web_lg  ~560MB - best accuracy\n"
-                        "Falls back to regex automatically if spaCy is not installed."
+                        "Protect negated anatomy terms from removal or replacement.\n"
+                        "e.g. 'no breasts' and 'without a vagina' are left untouched.\n"
+                        "spaCy uses dependency parsing; regex uses 4-token heuristic."
                     ),
                 }),
             }
         }
 
-    def run(self, text, mode, filter_anatomy, replace_anatomy, handle_negations,
-            handle_pronouns, rewrite_references, filter_presentation, swap_clothing,
-            map_neopronouns, spacy_model):
-        filtered, backend = filter_nl_gender(
+    def run(self, text, mode, filter_anatomy, replace_anatomy,
+            filter_presentation, swap_clothing, handle_pronouns,
+            rewrite_references, map_neopronouns, handle_negations, spacy_nlp=None):
+        filtered = filter_nl_gender(
             text=text, mode=mode,
             filter_anatomy=filter_anatomy,
             replace_anatomy=replace_anatomy,
-            handle_negations=handle_negations,
-            handle_pronouns=handle_pronouns,
-            rewrite_references=rewrite_references,
             filter_presentation=filter_presentation,
             swap_clothing=swap_clothing,
+            handle_pronouns=handle_pronouns,
+            rewrite_references=rewrite_references,
             map_neopronouns=map_neopronouns,
-            spacy_model=spacy_model,
+            handle_negations=handle_negations,
+            nlp=spacy_nlp,
         )
-        return (filtered, backend)
+        return (filtered,)
 
 
 NODE_CLASS_MAPPINGS        = {"GenderNLFilter": GenderNLFilter}

@@ -1,0 +1,42 @@
+{
+  "default": true,
+
+  // MD013: line-length
+  // Tables and inline code in documentation files legitimately exceed 80 chars.
+  // Enforcing hard wrapping at 80 columns would make tables and node reference
+  // sections unreadable. Disabled for the whole repo.
+  "MD013": false,
+
+  // MD024: no-duplicate-heading
+  // Keep a Changelog format intentionally repeats section headings (Added,
+  // Changed, Fixed, etc.) under each version block. siblings_only:true only
+  // flags duplicates that share the same direct parent heading, which lets the
+  // CHANGELOG pattern through while still catching accidental repeats inside
+  // a single section.
+  "MD024": { "siblings_only": true },
+
+  // MD060: table-column-style
+  // Requires every cell to be padded to the width of the widest entry in its
+  // column. On description-heavy reference tables this would make the source
+  // hundreds of characters wide and completely unreadable. Markdown renderers
+  // (including GitHub) do not require aligned pipes to render tables correctly.
+  "MD060": false,
+
+  // MD033: no-inline-html
+  // The centered screenshot at the top of the README uses <p align="center">
+  // and <img> because standard Markdown has no image alignment syntax. This
+  // is intentional and well-supported by GitHub's renderer.
+  "MD033": false,
+
+  // MD038: no-space-in-code
+  // The delimiter default value is literally ", " (comma followed by a space).
+  // Wrapping it in backticks as `, ` is the correct way to display it and the
+  // trailing space is intentional content, not a formatting error.
+  "MD038": false,
+
+  // MD028: no-blanks-blockquote
+  // Adjacent [!TIP] and [!NOTE] callouts in the README are intentionally
+  // separated by a blank line so GitHub renders them as distinct callout boxes
+  // rather than merging them into one. The blank line is load-bearing.
+  "MD028": false
+}
