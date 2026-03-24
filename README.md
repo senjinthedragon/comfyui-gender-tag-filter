@@ -48,7 +48,7 @@ Covers **128** female→male and **118** male→female word swaps, **111** NL cl
 
 ### SpaCy Model Loader 🔬
 
-Loads a spaCy language model and exposes it as a `SPACY_NLP` object that you wire into the `spacy_nlp` input on either filter node. Having a visible node in the graph makes it explicit whether spaCy is active — if the loader is not connected, both filter nodes automatically fall back to their built-in heuristic or regex processing.
+Loads a spaCy language model and exposes it as a `SPACY_NLP` object that you wire into the `spacy_nlp` input on either filter node. Having a visible node in the graph makes it explicit whether spaCy is active - if the loader is not connected, both filter nodes automatically fall back to their built-in heuristic or regex processing.
 
 If spaCy is not installed or the requested model is not downloaded, the loader raises a clear error with install instructions rather than silently doing nothing.
 
@@ -64,7 +64,7 @@ Removes duplicate tags from a comma-separated tag string, keeping the first occu
 
 - [ComfyUI](https://github.com/comfyanonymous/ComfyUI) (latest recommended)
 - Python 3.10–3.12 (comes with ComfyUI - see note below)
-- (recommended) [spaCy](https://spacy.io/) with at least one model installed — the filter nodes work without it but fall back to regex/heuristic mode
+- (recommended) [spaCy](https://spacy.io/) with at least one model installed - the filter nodes work without it but fall back to regex/heuristic mode
 
 > [!WARNING]
 > **spaCy does not currently support Python 3.13 or 3.14.**
@@ -114,7 +114,7 @@ pip install spacy
 python -m spacy download en_core_web_sm
 ```
 
-That's it. The SpaCy Model Loader detects all models installed in the current Python environment and lists them in its dropdown automatically — no folder management needed.
+That's it. The SpaCy Model Loader detects all models installed in the current Python environment and lists them in its dropdown automatically - no folder management needed.
 
 > [!TIP]
 > If you are running ComfyUI in a virtual environment, activate it before running the commands above. If you installed ComfyUI via the Windows portable package, use the `python_embeded` Python that ships with it:

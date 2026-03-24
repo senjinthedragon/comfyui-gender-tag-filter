@@ -144,7 +144,7 @@ def filter_gender_tags(
         return format_tag(tag, "underscores" if use_underscores else "spaces")
 
     # ── Format-only mode ──────────────────────────────────────────────────────
-    # No filtering — just normalise and reformat each tag. Special syntax and
+    # No filtering - just normalise and reformat each tag. Special syntax and
     # NL fragments pass through untouched exactly as in the filter modes.
     if mode == "format_only":
         output_tags = []
