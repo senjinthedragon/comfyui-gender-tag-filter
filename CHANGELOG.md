@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Source layout restored** (`gender_shared.py`): the Ruff formatter had collapsed the aligned, human-readable column layout of all data maps and replacement tables into dense single-line style. The maps are now protected with `# fmt: off` / `# fmt: on` markers so the aligned layout is preserved exactly as authored — easier to read, easier to extend.
+- **Source layout restored** (`gender_shared.py`): the Ruff formatter had collapsed the aligned, human-readable column layout of all data maps and replacement tables into dense single-line style. The maps are now protected with `# fmt: off` / `# fmt: on` markers so the aligned layout is preserved exactly as authored - easier to read, easier to extend.
 
 ### Other
 
@@ -24,18 +24,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 #### SpaCy Model Loader node (`SpaCyModelLoader`)
 
 - New `SpaCyModelLoader` node that loads a spaCy language model and outputs it as a typed `SPACY_NLP` object
-- Model dropdown is populated automatically via `spacy.util.get_installed_models()` — install a model with `python -m spacy download <model>` and it appears in the dropdown after a ComfyUI restart, no folder management needed
+- Model dropdown is populated automatically via `spacy.util.get_installed_models()` - install a model with `python -m spacy download <model>` and it appears in the dropdown after a ComfyUI restart, no folder management needed
 - `SPACY_NLP` is a custom ComfyUI type: only `SpaCyModelLoader` outputs can wire into the `spacy_nlp` inputs on the filter nodes, enforced by the ComfyUI type system
 - Raises a clear error if spaCy is not installed or no models are downloaded yet, with the exact commands to fix it
 
 #### Gender Tag Filter (`GenderTagFilter`)
 
-- `format_only` mode: applies `use_underscores` formatting with no filtering — useful for normalising tag spacing without any gender processing. Special syntax and NL fragments pass through untouched as in the filter modes.
+- `format_only` mode: applies `use_underscores` formatting with no filtering - useful for normalising tag spacing without any gender processing. Special syntax and NL fragments pass through untouched as in the filter modes.
 
 #### Gender Tag Filter (`GenderTagFilter`) and Gender NL Filter (`GenderNLFilter`)
 
 - `spacy_nlp` optional input (`SPACY_NLP` type): wire a `SpaCyModelLoader` node here to enable spaCy-backed processing; leave disconnected to use the built-in heuristic/regex fallback
-- `rewrite_references` toggle added to Gender Tag Filter: swaps standalone gendered noun tags (`woman` → `male`, `girl` → `boy`, `vixen` → `fox`, `doe` → `buck` etc.) — covers the same word set as the NL Filter for consistent behaviour across both nodes
+- `rewrite_references` toggle added to Gender Tag Filter: swaps standalone gendered noun tags (`woman` → `male`, `girl` → `boy`, `vixen` → `fox`, `doe` → `buck` etc.) - covers the same word set as the NL Filter for consistent behaviour across both nodes
 
 ### Removed
 
@@ -97,7 +97,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Negation detection for "no + noun" pattern** (`gender_shared.py`): spaCy labels `no` before a noun as `dep_="det"` (determiner), not `dep_="neg"`, so phrases like `the character has no breasts` were not being detected as negated. `has_negation_ancestor()` now also checks for negation determiners (`no`, `none`, `neither`, `never`) and walks up to the head verb to catch negation on auxiliary/verb nodes
 - **Invalid mode silent fallback** (`gender_tag_filter.py`, `gender_nl_filter.py`): bare `else` blocks on mode selection in all three processing paths (`filter_gender_tags`, `_process_regex`, `_process_spacy`) would silently treat any unrecognised mode string as `strip_male`. Changed to explicit `elif` with a final `else: return text` so unrecognised modes pass through safely
 - **`flat_chest: flat_chest` no-op replacement** (`gender_shared.py`): `flat_chest` was mapped to itself in `MALE_TO_FEMALE_REPLACEMENTS`. The tag is not in `MALE_ANATOMY` so it would never reach the anatomy blocklist anyway, making the replacement doubly unreachable. Entry removed.
-- **Dead `NEOPRONOUN_TAG_FORMS` constant** (`gender_shared.py`): the constant was defined but never used anywhere in the codebase — the import had been removed from `gender_tag_filter.py` in an earlier pass but the definition itself remained. Removed.
+- **Dead `NEOPRONOUN_TAG_FORMS` constant** (`gender_shared.py`): the constant was defined but never used anywhere in the codebase - the import had been removed from `gender_tag_filter.py` in an earlier pass but the definition itself remained. Removed.
 - Date for last release in the CHANGELOG.md is now correct
 - Removed unused `import logging` and `log = logging.getLogger(__name__)` from `gender_tag_filter.py` and `gender_nl_filter.py`
 
